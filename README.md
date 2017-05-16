@@ -6,31 +6,44 @@ This project allows for calculation of irreducible representations and tensor pr
 The use of this header is rather simple. Only two additional libraries are needed.
 
 ### Prerequisite Libraries
-Eigen Library found at http://eigen.tuxfamily.org  This handles most of the linear algebra. The pseudoinverse of a matrix needed to be added.
+Eigen Library found at http://eigen.tuxfamily.org  This handles most of the linear algebra. Several helper functions are used to handle rational numbers (finding the inverse of a matrix for example).
 
-Boost Library http://www.boost.org/ Specifically the math/special_functions/round.hpp because certain bases were not integer valued.
+Boost Library http://www.boost.org/ Specifically the Rational Number Library.
 
 ## Running Lie_Algebra
 To choose a group's algebra simply initialize the class with the desired dimension.
 
 Example:
 ```
-typedef typename Eigen::VectorXd vec;
-A_n A(2); // Initialize A_2
+#include "RootStructure.h"
 
-A.print(A.funamental_weights_omega); // Prints the fundamental weights in the dynkin (omega) basis 
 
-vec v(2,0);
+using namespace Eigen;
+using namespace Representation;
+using std::cout;
+using std::endl;
+int main() {
+	
+	LieBase<A> G(2);
+	
+	Eigen::Matrix<boost::rational<int>,2, 1> x,y;
 
-A.print(A.weight_tower(v)); //Prints all the states of the weight (2,0) in a linear fashion
+	x << boost::rational<int>(2), boost::rational<int>(0);
+	y << boost::rational<int>(1), boost::rational<int>(0);
 
-A.print(A.tower_layout(A.weight_tower(v))); //Prints the states in a 2d format that has all states that are the same distance from highest weight on the same line
+	auto sum = G.tensorProductDecomp(weight(x), weight(y));
 
-vec w(2,0);
-
-A.print(A.TensorProductDecomp_weights(v,w));//Prints out the irreducible tensor sum of the tensor product in weight form
-
-std::cout<<A.dim(v)<<std::endl; //Prints out the dimenions of (2,0) = 6
+	//Tensor product between (2,0) and (1,0)
+	cout << " (2,0)x(1,0) = ";
+	for (size_t i = 0; i<sum.size(); i++)
+	{
+		cout << int_cast(sum[i].omega).transpose();
+		if (i != sum.size() - 1)
+			cout << " + ";
+	}cout << endl;
+	
+	return 0
+  }
 ```
 
 ## Sources
@@ -48,7 +61,7 @@ std::cout<<A.dim(v)<<std::endl; //Prints out the dimenions of (2,0) = 6
 
 ## Current Update
 
-Qt Released
+V2 
 
 ## Next Update
-The program is at a point where I feel nothing more to add at the moment. I will begin to review it and rewrite algorithms for greater effecicency
+Redo the Qt application with the new backend. Possibly add exceptional groups
