@@ -1,5 +1,5 @@
-#ifndef REPRESENTATION
-#define REPRESENTATION
+#ifndef REPRESENTATION_LIEALGEBRA_H
+#define REPRESENTATION_LIEALGEBRA_H
 
 #include<Eigen\Core>
 #include<Eigen\LU>
@@ -194,7 +194,7 @@ namespace Representation {
 	*           Classical Groups
 	*/
 
-	enum GroupType {
+	enum class GroupType {
 		A,
 		B,
 		C,
@@ -1111,4 +1111,4 @@ namespace Representation {
 
 
 
-#endif // !REPRESENTATION
+#endif // !REPRESENTATION_LIEALGEBRA_H

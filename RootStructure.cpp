@@ -4,6 +4,22 @@ namespace Representation {
 	using namespace Eigen;
 	using namespace boost;	
 	
+	std::ostream & operator<<( std::ostream & out, const weight & w)
+	{
+		int n = w.omega.size();
+		out << "(";
+		for (int i = 0; i < n; i++)
+		{
+			out<< rational_cast<int>(w.omega(i));
+			if (i < n - 1)
+			{
+				out << ",";
+			}
+		}
+		out << ")";
+		return out;
+	}
+
 	Matrix<rational<int>, Dynamic, Dynamic> Identity(int size)
 	{
 		{
