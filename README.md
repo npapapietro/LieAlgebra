@@ -1,4 +1,4 @@
-# Lie_Algebra
+# Lie Algebra
 This project allows for calculation of irreducible representations and tensor product decomposition of Lie Algebras.  So far the classical groups: A, B, C, and D are included. The formalism of the bases follow those found in [1]. A lot of the algorithms follow the usage in [2]. A much more thorough walkthrough of the topics can be found in [3].
 
 ## Getting Started
