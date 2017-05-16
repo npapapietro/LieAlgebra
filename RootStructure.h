@@ -794,7 +794,7 @@ namespace Representation {
 		/* 
 		* This is a helper function for the modified Freudenthal Recursion Formula
 		* R. V. Moody, J. Patera, Fast Recursion Formula for Weight Multiplicities, Bull.Amer.Math.Soc.(N.S.)
-			7 (1) (1982) 237–242.
+			7 (1) (1982) 237Â–242.
 		*/
 		std::vector<std::pair<int, weight>> multiplicity;
 		std::vector<int> stabilizers;
@@ -950,13 +950,11 @@ namespace Representation {
 		std::vector<weight> dom_weights = dominantWeights(tower);
 		std::vector<std::pair<int, weight>> dom_weights_multi;
 
-		//for (auto i : dom_weights) std::cout << i.omega.transpose() << std::endl;
 		//load list of degenerate weights
 		for (auto wt : dom_weights)
 		{
 			int multi = freudenthalsRecursion(wt, dom_weights, multiplicity(wt));
 			dom_weights_multi.push_back({ multi, wt });
-			//std::cout << multi << "   " << wt.omega.transpose() << std::endl;
 		}
 
 		//Modified algorithm states that tower is built from weylOrbits of dominantWeights with proper degenerencies
@@ -966,7 +964,6 @@ namespace Representation {
 		{
 			if (i.omega.size() == 0)
 				i.omega = to_omega(i);
-			std::cout << int_cast( i.omega).transpose() << std::endl;
 		}
 		for (auto i : dom_weights_multi)
 		{
@@ -1054,9 +1051,6 @@ namespace Representation {
 				tensor_sum.push_back(i.second);
 		}
 
-		for (auto i : tensor_sum)
-			std::cout << " weight: " << i.omega.transpose() << std::endl;
-
 		return tensor_sum;
 	}
 
@@ -1105,7 +1099,6 @@ namespace Representation {
 			std::cout << "multi: " << i.first << " , weight: " << i.second.omega.transpose() << std::endl;
 
 	}
-
 
 }
 
