@@ -1,6 +1,10 @@
 #ifndef REPRESENTATION_LIEALGEBRA_H
 #define REPRESENTATION_LIEALGEBRA_H
 
+#if defined(_MSC_VER)
+#define _SCL_SECURE_NO_WARNINGS
+#endif
+
 #include<Eigen\Core>
 #include<Eigen\LU>
 #include<vector>
@@ -8,7 +12,6 @@
 #include<iostream>
 #include<algorithm>
 
-#define EMPTYWEIGHT(X) assert(X && "Cannot basis rotate an empty weight.");
 
 namespace Eigen {
 	template<> struct NumTraits<boost::rational<int>> :GenericNumTraits<boost::rational<int>> {
@@ -385,7 +388,6 @@ namespace Representation {
 	template<GroupType T>
 	inline Matrix<rational<int>,Dynamic,1> LieBase<T>::to_alpha(weight V)
 	{
-		EMPTYWEIGHT(!V.is_empty())
 		if (V.alpha.size() != 0)
 			return V.alpha;
 		else if (V.ortho.size() != 0)
@@ -397,7 +399,6 @@ namespace Representation {
 	template<GroupType T>
 	inline Matrix<rational<int>, Dynamic, 1> LieBase<T>::to_omega(weight V)
 	{
-		EMPTYWEIGHT(!V.is_empty())
 		if (V.omega.size() != 0 )
 			return V.omega;
 		else if (V.ortho.size() != 0) 
@@ -409,7 +410,6 @@ namespace Representation {
 	template<GroupType T>
 	inline Matrix<rational<int>, Dynamic, 1> LieBase<T>::to_ortho(weight V)
 	{
-		EMPTYWEIGHT(!V.is_empty())
 		if (V.ortho.size() != 0)
 			return V.ortho;
 		else if (V.omega.size() != 0)
@@ -431,7 +431,7 @@ namespace Representation {
 	}
 
 	template<>
-	inline void LieBase<A>::createOrtho()
+	inline void LieBase<GroupType::A>::createOrtho()
 	{
 		//Create Identity matrix
 		MatrixXr Id_1 = Identity(Rank + 1);
@@ -462,7 +462,7 @@ namespace Representation {
 	}
 
 	template<>
-	inline void LieBase<B>::createOrtho()
+	inline void LieBase<GroupType::B>::createOrtho()
 	{
 		//Create Identity matrix
 		MatrixXr Id_1 = Identity(Rank);
@@ -518,7 +518,7 @@ namespace Representation {
 	}
 
 	template<>
-	inline void LieBase<C>::createOrtho()
+	inline void LieBase<GroupType::C>::createOrtho()
 	{
 		//Create Identity matrix
 		MatrixXr Id_1 = Identity(Rank);
@@ -563,7 +563,7 @@ namespace Representation {
 	}
 
 	template<>
-	inline void LieBase<D>::createOrtho()
+	inline void LieBase<GroupType::D>::createOrtho()
 	{
 		//Create Identity matrix
 		MatrixXr Id_1 = Identity(Rank);
@@ -645,7 +645,7 @@ namespace Representation {
 	}
 
 	template<>
-	inline void LieBase<A>::createMatrices()
+	inline void LieBase<GroupType::A>::createMatrices()
 	{
 		Cartan.resize(Rank, Rank);
 		//Cartan Defined
