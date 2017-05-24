@@ -5,10 +5,10 @@
 #define _SCL_SECURE_NO_WARNINGS
 #endif
 
-#include<Eigen\Core>
-#include<Eigen\LU>
+#include<Eigen/Core>
+#include<Eigen/LU>
 #include<vector>
-#include<boost\rational.hpp>
+#include<boost/rational.hpp>
 #include<iostream>
 #include<algorithm>
 
@@ -25,7 +25,7 @@ namespace Eigen {
 namespace Representation {
 	using namespace boost;
 	using namespace Eigen;
-	
+
 
 	/*
 	* Allows for more compact handling of roots and weights
@@ -73,17 +73,14 @@ namespace Representation {
 		return false;
 	}
 
-	template<typename T>
-	Matrix<T, Dynamic, Dynamic> PseudoInverse(Matrix<T, Dynamic, Dynamic> M)
-	{
-		Eigen::Matrix<T, Dynamic, Dynamic> Sq_M = M*M.transpose();
-		return M.transpose()*(RationalInverse<T>(Sq_M));
-	}
+
+
+	Matrix<rational<int>, Dynamic, Dynamic> Identity(int size);
 
 	template<typename T>
 	Matrix<T, Dynamic, Dynamic> ReflectionMatrix(Matrix<T, Dynamic, 1> V)
 	{
-		
+
 		Matrix<T, Dynamic, Dynamic> M;
 		M.resize(V.size(), V.size());
 		Matrix<T, Dynamic, Dynamic> I = Identity(V.size());
@@ -95,20 +92,10 @@ namespace Representation {
 			}
 		}
 		return M;
-		
-	}
 
-	Matrix<rational<int>, Dynamic, Dynamic> Identity(int size);	
+	}
 
 	VectorXi int_cast(Matrix<rational<int>, Dynamic, 1> X);
-
-	template<typename T>
-	Matrix<T, Dynamic, Dynamic> RationalInverse(Matrix<T, Dynamic, Dynamic> M)
-	{
-		Matrix<T, Dynamic, Dynamic> co = CoFactor<T>(M);
-		T det = RationalDeterminant<T>(M);
-		return co.transpose() / det;
-	}
 
 	template<typename T>
 	T RationalDeterminant(Matrix<T, Dynamic, Dynamic> M)
@@ -186,6 +173,21 @@ namespace Representation {
 	}
 
 	template<typename T>
+	Matrix<T, Dynamic, Dynamic> RationalInverse(Matrix<T, Dynamic, Dynamic> M)
+	{
+		Matrix<T, Dynamic, Dynamic> co = CoFactor<T>(M);
+		T det = RationalDeterminant<T>(M);
+		return co.transpose() / det;
+	}
+
+	template<typename T>
+	Matrix<T, Dynamic, Dynamic> PseudoInverse(Matrix<T, Dynamic, Dynamic> M)
+	{
+		Eigen::Matrix<T, Dynamic, Dynamic> Sq_M = M*M.transpose();
+		return M.transpose()*(RationalInverse<T>(Sq_M));
+	}
+
+	template<typename T>
 	T master_formula(Matrix<T, Dynamic, 1> U, Matrix<T, Dynamic, 1> V)
 	{
 		T numerator = 2 * U.dot(V);
@@ -231,13 +233,13 @@ namespace Representation {
 		int freudenthalsRecursion(weight current, std::vector<weight> domWeights, std::vector<std::pair<int, weight>> stabilizedOrbits);
 
 		std::vector<std::pair<int, weight>> multiplicity(weight highest);
-	
+
 	public:
 
 		VectorXr to_alpha(weight V);
 		VectorXr to_omega(weight V);
 		VectorXr to_ortho(weight V);
-		
+
 		LieBase(size_t Rank);
 
 		std::vector<weight> simple, positiver, fweight;
@@ -247,7 +249,7 @@ namespace Representation {
 		MatrixXr Cartan;
 		MatrixXr Omega;
 		MatrixXr CoCartan;
-		MatrixXr QuadraticForm;		
+		MatrixXr QuadraticForm;
 
 		int dim(weight w);
 		int k_lvl(weight w);
@@ -260,11 +262,11 @@ namespace Representation {
 	inline std::vector<weight> LieBase<T>::weylOrbit(weight head)
 	{
 		std::vector<weight> master_list = { head };
-		
+
 		while (true)
 		{
 			//list of reflected weights
-			std::vector<weight> reflected_list; 
+			std::vector<weight> reflected_list;
 
 			//iterate through master list
 			for (auto i : master_list)
@@ -282,7 +284,7 @@ namespace Representation {
 					* reflected weight (we neglect alpha for the moment)
 					*/
 					weight reflected;
-					
+
 					MatrixXr Reflector = ReflectionMatrix<rational<int>>(simple[j].ortho);
 					reflected.ortho = Reflector * i.ortho;
 					reflected.omega = to_omega(reflected);
@@ -292,8 +294,8 @@ namespace Representation {
 					auto findreflected = std::find(reflected_list.begin(), reflected_list.end(), reflected);
 					if (findmaster == master_list.end() && findreflected == reflected_list.end())
 						reflected_list.push_back(reflected);
-					
-				}			
+
+				}
 			}
 
 			//If no new reflections are made, stop. All have been found
@@ -379,7 +381,7 @@ namespace Representation {
 			if (is_pos<rational<int>>(i.omega))
 			{
 				DominantWeights.push_back(i);
-				
+
 			}
 		}
 		return DominantWeights;
@@ -392,7 +394,7 @@ namespace Representation {
 			return V.alpha;
 		else if (V.ortho.size() != 0)
 			return ((PseudoInverse<rational<int>>(Cartan)).transpose())*((PseudoInverse<rational<int>>(Omega).transpose())*V.ortho);
-		else 
+		else
 			return (PseudoInverse<rational<int>>(Cartan)).transpose() * V.omega;
 	}
 
@@ -401,9 +403,9 @@ namespace Representation {
 	{
 		if (V.omega.size() != 0 )
 			return V.omega;
-		else if (V.ortho.size() != 0) 
+		else if (V.ortho.size() != 0)
 			return (PseudoInverse<rational<int>>(Omega).transpose())*V.ortho;
-		else 	
+		else
 			return Cartan.transpose()*V.alpha;
 	}
 
@@ -488,7 +490,7 @@ namespace Representation {
 			fweight.push_back(temp_w);
 		}
 
-		
+
 
 		//Creates orthogonal positive roots
 		// ei+ej,ei-ej,ei
@@ -631,7 +633,7 @@ namespace Representation {
 			CoCartan.row(i) = 2 * simple[i].ortho / (simple[i].ortho.dot(simple[i].ortho));
 		}
 		Omega = (PseudoInverse<rational<int>>(CoCartan)).transpose();
-		
+
 		//QuadraticForm Defined
 		QuadraticForm.resize(Rank, Rank);
 		MatrixXr temp;
@@ -718,7 +720,7 @@ namespace Representation {
 		weight reflected = w;
 
 		//reflect to dominant chamber, counter flips +/- 1 each reflection
-		while (true) 
+		while (true)
 		{
 			for (auto i : simple)
 			{
@@ -747,7 +749,7 @@ namespace Representation {
 		int k_current = k_lvl(current);
 		int k_highest = k_lvl(highest);
 
-		//check 
+		//check
 		if (current == highest)
 			return 1;
 
@@ -791,10 +793,10 @@ namespace Representation {
 	template<GroupType T>
 	inline std::vector<std::pair<int, weight>> LieBase<T>::multiplicity(weight highest)
 	{
-		/* 
+		/*
 		* This is a helper function for the modified Freudenthal Recursion Formula
 		* R. V. Moody, J. Patera, Fast Recursion Formula for Weight Multiplicities, Bull.Amer.Math.Soc.(N.S.)
-			7 (1) (1982) 237–242.
+			7 (1) (1982) 237ï¿½242.
 		*/
 		std::vector<std::pair<int, weight>> multiplicity;
 		std::vector<int> stabilizers;
@@ -860,10 +862,10 @@ namespace Representation {
 	{
 		std::vector<weight> final_result;
 
-		//concenate all simple orbits 
+		//concenate all simple orbits
 		for (auto i : simple)
 		{
-			std::vector<weight> orbit = WeylOrbit(i);
+			std::vector<weight> orbit = weylOrbit(i);
 			final_result.insert(final_result.end(), orbit.begin(), orbit.end());
 		}
 
@@ -899,9 +901,9 @@ namespace Representation {
 			zeros.omega = z;
 			final_result.push_back(zeros);
 		}
-		
+
 		return final_result;
-		
+
 	}
 
 	template<GroupType T>
@@ -987,7 +989,7 @@ namespace Representation {
 
 		std::vector<weight> tower1 = weightTower(w1);
 		std::vector<weight> mu;
-		
+
 		if (w1.omega.size() == 0)
 			w1.omega = to_omega(w1);
 		if (w2.omega.size() == 0)
@@ -999,10 +1001,10 @@ namespace Representation {
 				wt.omega = to_omega(wt);
 			mu.push_back(weight(wt.omega + w2.omega + rho));
 		}
-			
+
 		std::vector<std::pair<int, weight>> weight_parities;
 
-		
+
 		for (auto wt : mu)
 		{
 			int parity = 1;
@@ -1019,7 +1021,7 @@ namespace Representation {
 				weight_parities.push_back({ parity, temp });
 			}
 		}
-		
+
 		//weight_partities are unsorted
 		auto wp_sort = [](std::pair<int, weight> &X, std::pair<int, weight> &Y)->bool
 		{
@@ -1047,7 +1049,7 @@ namespace Representation {
 			it->first = 0;
 			it = std::adjacent_find(++it, weight_parities.end(), multi_count);
 		}
-		
+
 		std::vector<weight> tensor_sum;
 		for (auto i : weight_parities) {
 			for (int j = 0; j < i.first; j++)
@@ -1075,7 +1077,7 @@ namespace Representation {
 			rational<int> denom = rho.transpose() * QuadraticForm * (i.omega);
 			prod *= numer / denom;
 		}
-		
+
 		int final_ans = rational_cast<int>(prod);
 		return final_ans;
 	}
