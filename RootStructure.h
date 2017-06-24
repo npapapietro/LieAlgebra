@@ -1,9 +1,7 @@
 #ifndef REPRESENTATION_LIEALGEBRA_H
 #define REPRESENTATION_LIEALGEBRA_H
 
-#if defined(_MSC_VER)
-#define _SCL_SECURE_NO_WARNINGS
-#endif
+
 
 #include<Eigen/Core>
 #include<Eigen/LU>
@@ -73,7 +71,7 @@ namespace Representation {
 		return false;
 	}
 
-
+	MatrixXi int_cast_Matrix(Matrix<rational<int>, Dynamic, Dynamic> X);
 
 	Matrix<rational<int>, Dynamic, Dynamic> Identity(int size);
 
@@ -95,7 +93,7 @@ namespace Representation {
 
 	}
 
-	VectorXi int_cast(Matrix<rational<int>, Dynamic, 1> X);
+	VectorXi int_cast_Vector(Matrix<rational<int>, Dynamic, 1> X);
 
 	template<typename T>
 	T RationalDeterminant(Matrix<T, Dynamic, Dynamic> M)
@@ -209,13 +207,40 @@ namespace Representation {
 	/*
 	*           Base class that handles all Lie algebra
 	*/
-
-	template<GroupType T>
-	class LieBase {
+	struct GroupBase {
 		typedef Matrix <rational<int>, Dynamic, Dynamic> MatrixXr;
 		typedef Matrix <rational<int>, Dynamic, 1> VectorXr;
 
-		size_t Rank;
+		virtual VectorXr to_alpha(weight V) = 0;
+		virtual VectorXr to_omega(weight V) = 0;
+		virtual VectorXr to_ortho(weight V) = 0;
+
+		GroupBase() {}
+
+		std::vector<weight> simple, positiver, fweight;
+		virtual std::vector<weight> weightTower() = 0;
+		virtual std::vector<weight> weightTower(weight w) = 0;
+		virtual std::vector<weight> tensorProductDecomp(weight w1, weight w2) = 0;
+		
+		virtual size_t get_Rank() = 0;
+		virtual MatrixXr get_Cartan() = 0;
+		virtual MatrixXr get_Omega() = 0;
+		virtual MatrixXr get_CoCartan() = 0;
+		virtual MatrixXr get_QuadraticForm() = 0;
+		
+		virtual int dim(weight w) = 0;
+		virtual int k_lvl(weight w) = 0;
+
+		virtual void testf(std::vector<weight> v) = 0;
+		virtual ~GroupBase(){}
+
+	};
+
+	template<GroupType T>
+	class LieBase: public GroupBase {
+		typedef Matrix <rational<int>, Dynamic, Dynamic> MatrixXr;
+		typedef Matrix <rational<int>, Dynamic, 1> VectorXr;
+
 		GroupType Group;
 
 		VectorXr rho;
@@ -234,6 +259,12 @@ namespace Representation {
 
 		std::vector<std::pair<int, weight>> multiplicity(weight highest);
 
+		size_t Rank;
+		MatrixXr Cartan;
+		MatrixXr Omega;
+		MatrixXr CoCartan;
+		MatrixXr QuadraticForm;
+
 	public:
 
 		VectorXr to_alpha(weight V);
@@ -246,16 +277,17 @@ namespace Representation {
 		std::vector<weight> weightTower(), weightTower(weight w);
 		std::vector<weight> tensorProductDecomp(weight w1, weight w2);
 
-		MatrixXr Cartan;
-		MatrixXr Omega;
-		MatrixXr CoCartan;
-		MatrixXr QuadraticForm;
+		size_t get_Rank();
+		MatrixXr get_Cartan();
+		MatrixXr get_Omega();
+		MatrixXr get_CoCartan();
+		MatrixXr get_QuadraticForm();
 
 		int dim(weight w);
 		int k_lvl(weight w);
 
 		void testf(std::vector<weight> v);
-
+		virtual ~LieBase() {};
 	};
 
 	template<GroupType T>
@@ -968,7 +1000,7 @@ namespace Representation {
 		{
 			if (i.omega.size() == 0)
 				i.omega = to_omega(i);
-			std::cout << int_cast( i.omega).transpose() << std::endl;
+			std::cout << int_cast_Vector( i.omega).transpose() << std::endl;
 		}
 		for (auto i : dom_weights_multi)
 		{
@@ -1060,6 +1092,36 @@ namespace Representation {
 			std::cout << " weight: " << i.omega.transpose() << std::endl;
 
 		return tensor_sum;
+	}
+
+	template<GroupType T>
+	size_t LieBase<T>::get_Rank()
+	{
+		return Rank;
+	}
+
+	template<GroupType T>
+	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_Cartan()
+	{
+		return Cartan;
+	}
+
+	template<GroupType T>
+	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_Omega()
+	{
+		return Omega;
+	}
+
+	template<GroupType T>
+	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_CoCartan()
+	{
+		return CoCartan;
+	}
+
+	template<GroupType T>
+	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_QuadraticForm()
+	{
+		return QuadraticForm;
 	}
 
 	template<GroupType T>

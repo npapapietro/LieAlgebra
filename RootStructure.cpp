@@ -20,6 +20,19 @@ namespace Representation {
 		return out;
 	}
 
+	MatrixXi int_cast_Matrix(Matrix<rational<int>, Dynamic, Dynamic> X)
+	{
+		MatrixXi v = MatrixXi::Zero(X.size(),X.size());
+		for (int i = 0; i < X.rows(); i++)
+		{
+			for (int j = 0; j < X.cols(); j++)
+			{
+				v(i,j) = rational_cast<int>(X(i,j));
+			}
+		}
+		return v;
+	}
+
 	Matrix<rational<int>, Dynamic, Dynamic> Identity(int size)
 	{
 		{
@@ -37,7 +50,7 @@ namespace Representation {
 		}
 	}
 
-	VectorXi int_cast(Matrix<rational<int>, Dynamic, 1> X)
+	VectorXi int_cast_Vector(Matrix<rational<int>, Dynamic, 1> X)
 	{
 		VectorXi v = VectorXi::Zero(X.size());
 		for (int i = 0; i < X.size(); i++)
