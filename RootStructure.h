@@ -2,18 +2,18 @@
 #define REPRESENTATION_LIEALGEBRA_H
 
 
-
 #include<Eigen/Core>
 #include<Eigen/LU>
 #include<vector>
 #include<boost/rational.hpp>
 #include<iostream>
 #include<algorithm>
+#include<memory>
+#include"LoggerLibrary.h"
 
 
 namespace Eigen {
 	template<> struct NumTraits<boost::rational<int>> :GenericNumTraits<boost::rational<int>> {
-
 		enum {
 			IsInteger = 1,
 		};
@@ -51,6 +51,7 @@ namespace Representation {
 	template<typename T>
 	bool is_pos(Matrix<T, Dynamic, 1> V)
 	{
+		FILE_LOG(Diagnositics::logDEBUG4) << "Is Positive called with type " << boost::typeindex::type_id<T>().pretty_name();
 		for (int i = 0; i < V.size(); i++)
 		{
 			if (V(i) < 0)
@@ -62,6 +63,8 @@ namespace Representation {
 	template<typename T>
 	bool has_zero(Matrix<T, Dynamic, 1> V)
 	{
+		FILE_LOG(Diagnositics::logDEBUG4) << "has_zero called with type " << boost::typeindex::type_id<T>().pretty_name();
+
 		for (int k = 0; k < V.size(); k++)
 		{
 			if (V(k) == 0)
@@ -78,7 +81,7 @@ namespace Representation {
 	template<typename T>
 	Matrix<T, Dynamic, Dynamic> ReflectionMatrix(Matrix<T, Dynamic, 1> V)
 	{
-
+		FILE_LOG(Diagnositics::logDEBUG4)<< "Reflection Matrix with type " <<boost::typeindex::type_id<T>().pretty_name();
 		Matrix<T, Dynamic, Dynamic> M;
 		M.resize(V.size(), V.size());
 		Matrix<T, Dynamic, Dynamic> I = Identity(V.size());
@@ -98,6 +101,7 @@ namespace Representation {
 	template<typename T>
 	T RationalDeterminant(Matrix<T, Dynamic, Dynamic> M)
 	{
+		FILE_LOG(Diagnositics::logDEBUG4)<< "Rational Determinant with type " <<boost::typeindex::type_id<T>().pretty_name();
 		int n = M.rows(); // Size of NxN
 		T det = 0; //init det
 
@@ -135,6 +139,8 @@ namespace Representation {
 	template<typename T>
 	Matrix<T, Dynamic, Dynamic> CoFactor(Matrix<T, Dynamic, Dynamic> M)
 	{
+		FILE_LOG(Diagnositics::logDEBUG4)<< "CoFactor with type " <<boost::typeindex::type_id<T>().pretty_name();
+
 		int n = M.rows(); // Size of NxN
 		Matrix<T, Dynamic, Dynamic> m, c;
 
@@ -173,6 +179,8 @@ namespace Representation {
 	template<typename T>
 	Matrix<T, Dynamic, Dynamic> RationalInverse(Matrix<T, Dynamic, Dynamic> M)
 	{
+		FILE_LOG(Diagnositics::logDEBUG4)<< "RationalInverse with type " <<boost::typeindex::type_id<T>().pretty_name();
+
 		Matrix<T, Dynamic, Dynamic> co = CoFactor<T>(M);
 		T det = RationalDeterminant<T>(M);
 		return co.transpose() / det;
@@ -181,6 +189,8 @@ namespace Representation {
 	template<typename T>
 	Matrix<T, Dynamic, Dynamic> PseudoInverse(Matrix<T, Dynamic, Dynamic> M)
 	{
+		FILE_LOG(Diagnositics::logDEBUG4)<< "PseudoInverse with type " <<boost::typeindex::type_id<T>().pretty_name();
+
 		Eigen::Matrix<T, Dynamic, Dynamic> Sq_M = M*M.transpose();
 		return M.transpose()*(RationalInverse<T>(Sq_M));
 	}
@@ -188,6 +198,7 @@ namespace Representation {
 	template<typename T>
 	T master_formula(Matrix<T, Dynamic, 1> U, Matrix<T, Dynamic, 1> V)
 	{
+		FILE_LOG(Diagnositics::logDEBUG4) << "master_formula with type " <<boost::typeindex::type_id<T>().pretty_name();
 		T numerator = 2 * U.dot(V);
 		T denominator = U.dot(U);
 		return numerator / denominator;
@@ -207,7 +218,13 @@ namespace Representation {
 	/*
 	*           Base class that handles all Lie algebra
 	*/
-	struct GroupBase {
+	class GroupBase {
+	protected:
+		virtual void createOrtho() = 0;
+		virtual void createMatrices() = 0;
+		virtual void createAllBases() = 0;
+
+	public:
 		typedef Matrix <rational<int>, Dynamic, Dynamic> MatrixXr;
 		typedef Matrix <rational<int>, Dynamic, 1> VectorXr;
 
@@ -215,25 +232,31 @@ namespace Representation {
 		virtual VectorXr to_omega(weight V) = 0;
 		virtual VectorXr to_ortho(weight V) = 0;
 
-		GroupBase() {}
 
-		std::vector<weight> simple, positiver, fweight;
 		virtual std::vector<weight> weightTower() = 0;
 		virtual std::vector<weight> weightTower(weight w) = 0;
 		virtual std::vector<weight> tensorProductDecomp(weight w1, weight w2) = 0;
-		
+
 		virtual size_t get_Rank() = 0;
-		virtual MatrixXr get_Cartan() = 0;
-		virtual MatrixXr get_Omega() = 0;
-		virtual MatrixXr get_CoCartan() = 0;
-		virtual MatrixXr get_QuadraticForm() = 0;
-		
+		virtual MatrixXr get_Cartan() const = 0;
+		virtual MatrixXr get_Omega() const = 0;
+		virtual MatrixXr get_CoCartan() const = 0;
+		virtual MatrixXr get_QuadraticForm() const = 0;
+
+		virtual std::vector<weight> get_simple() const = 0;
+		virtual std::vector<weight> get_positiver() const = 0;
+		virtual std::vector<weight> get_fweight() const = 0;
+
 		virtual int dim(weight w) = 0;
 		virtual int k_lvl(weight w) = 0;
 
-		virtual void testf(std::vector<weight> v) = 0;
+		GroupBase() {}
+		GroupBase(const GroupBase&) = default;
+		GroupBase(GroupBase &&) = default;
 		virtual ~GroupBase(){}
-
+		virtual GroupBase* clone() const = 0;
+		GroupBase& operator=(const GroupBase&) = default;
+		GroupBase& operator=(GroupBase&&) = default;
 	};
 
 	template<GroupType T>
@@ -265,34 +288,45 @@ namespace Representation {
 		MatrixXr CoCartan;
 		MatrixXr QuadraticForm;
 
+		std::vector<weight> simple, positiver, fweight;;
+
 	public:
 
 		VectorXr to_alpha(weight V);
 		VectorXr to_omega(weight V);
 		VectorXr to_ortho(weight V);
 
+		LieBase (){}
 		LieBase(size_t Rank);
+ 		virtual ~LieBase() {};
+		virtual LieBase * clone() const{ return new LieBase(*this); }
+		LieBase(const LieBase&) = default;
+		LieBase(LieBase&&) = default;
+		LieBase& operator=(LieBase&&) = default;
 
-		std::vector<weight> simple, positiver, fweight;
+
+		std::vector<weight> get_simple() const;
+		std::vector<weight> get_positiver() const;
+		std::vector<weight> get_fweight() const;
 		std::vector<weight> weightTower(), weightTower(weight w);
 		std::vector<weight> tensorProductDecomp(weight w1, weight w2);
 
 		size_t get_Rank();
-		MatrixXr get_Cartan();
-		MatrixXr get_Omega();
-		MatrixXr get_CoCartan();
-		MatrixXr get_QuadraticForm();
+		MatrixXr get_Cartan() const;
+		MatrixXr get_Omega() const;
+		MatrixXr get_CoCartan() const;
+		MatrixXr get_QuadraticForm() const;
 
 		int dim(weight w);
 		int k_lvl(weight w);
 
-		void testf(std::vector<weight> v);
-		virtual ~LieBase() {};
 	};
 
 	template<GroupType T>
 	inline std::vector<weight> LieBase<T>::weylOrbit(weight head)
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "weylOrbit called";
+
 		std::vector<weight> master_list = { head };
 
 		while (true)
@@ -347,6 +381,7 @@ namespace Representation {
 	template<GroupType T>
 	inline std::vector<weight> LieBase<T>::weylOrbit(weight head,std::vector<int> stabilizer)
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "weylOrbit with stab called";
 		std::vector<weight> master_list = { head };
 
 		while (true)
@@ -400,6 +435,7 @@ namespace Representation {
 	template<GroupType T>
 	inline std::vector<weight> LieBase<T>::dominantWeights(std::vector<weight> representation)
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "dominantWeights called";
 		//Picks dominant weights from a representation and fills vector
 		std::vector<weight> DominantWeights;
 
@@ -422,6 +458,8 @@ namespace Representation {
 	template<GroupType T>
 	inline Matrix<rational<int>,Dynamic,1> LieBase<T>::to_alpha(weight V)
 	{
+		FILE_LOG(Diagnositics::logDEBUG4) << "to_alpha called";
+
 		if (V.alpha.size() != 0)
 			return V.alpha;
 		else if (V.ortho.size() != 0)
@@ -433,6 +471,8 @@ namespace Representation {
 	template<GroupType T>
 	inline Matrix<rational<int>, Dynamic, 1> LieBase<T>::to_omega(weight V)
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "to_omega called";
+
 		if (V.omega.size() != 0 )
 			return V.omega;
 		else if (V.ortho.size() != 0)
@@ -444,6 +484,8 @@ namespace Representation {
 	template<GroupType T>
 	inline Matrix<rational<int>, Dynamic, 1> LieBase<T>::to_ortho(weight V)
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "to_ortho called";
+
 		if (V.ortho.size() != 0)
 			return V.ortho;
 		else if (V.omega.size() != 0)
@@ -453,9 +495,14 @@ namespace Representation {
 
 	}
 
+/*
+*		Constructor
+*/
 	template<GroupType T>
 	inline LieBase<T>::LieBase(size_t Rank)
 	{
+		FILE_LOG(Diagnositics::logDEBUG2) << "LieBase Constructor rank "<<Rank<<" called";
+
 		this->Rank = Rank;
 		this->Group = T;
 		createOrtho();
@@ -467,6 +514,8 @@ namespace Representation {
 	template<>
 	inline void LieBase<GroupType::A>::createOrtho()
 	{
+		FILE_LOG(Diagnositics::logDEBUG2) << "createOrtho A called";
+
 		//Create Identity matrix
 		MatrixXr Id_1 = Identity(Rank + 1);
 		MatrixXr Id_2 = Identity(Rank);
@@ -480,6 +529,8 @@ namespace Representation {
 			temp_w.omega = Id_2.row(i);
 			simple.push_back(temp_r);
 			fweight.push_back(temp_w);
+			FILE_LOG(Diagnositics::logDEBUG3) << temp_w.omega.transpose();
+
 		}
 
 		//Creates orthogonal positive roots
@@ -498,6 +549,8 @@ namespace Representation {
 	template<>
 	inline void LieBase<GroupType::B>::createOrtho()
 	{
+		FILE_LOG(Diagnositics::logDEBUG2) << "createOrtho B called";
+
 		//Create Identity matrix
 		MatrixXr Id_1 = Identity(Rank);
 
@@ -554,6 +607,8 @@ namespace Representation {
 	template<>
 	inline void LieBase<GroupType::C>::createOrtho()
 	{
+		FILE_LOG(Diagnositics::logDEBUG2) << "createOrtho C called";
+
 		//Create Identity matrix
 		MatrixXr Id_1 = Identity(Rank);
 
@@ -599,6 +654,8 @@ namespace Representation {
 	template<>
 	inline void LieBase<GroupType::D>::createOrtho()
 	{
+		FILE_LOG(Diagnositics::logDEBUG2) << "createOrtho D called";
+
 		//Create Identity matrix
 		MatrixXr Id_1 = Identity(Rank);
 
@@ -648,6 +705,8 @@ namespace Representation {
 	template<GroupType T>
 	inline void LieBase<T>::createMatrices()
 	{
+		FILE_LOG(Diagnositics::logDEBUG2) << "createMatrices called";
+
 		Cartan.resize(Rank, Rank);
 		//Cartan Defined
 		for (size_t i = 0; i < Rank; i++)
@@ -681,6 +740,8 @@ namespace Representation {
 	template<>
 	inline void LieBase<GroupType::A>::createMatrices()
 	{
+		FILE_LOG(Diagnositics::logDEBUG2) << "createMatrices A called";
+
 		Cartan.resize(Rank, Rank);
 		//Cartan Defined
 		for (size_t i = 0; i < Rank; i++)
@@ -714,6 +775,8 @@ namespace Representation {
 	template<GroupType T>
 	inline void LieBase<T>::createAllBases()
 	{
+		FILE_LOG(Diagnositics::logDEBUG2) << "createAllBases called";
+
 		//create all bases for simple roots
 		for (size_t i = 0; i < simple.size(); i++)
 		{
@@ -739,6 +802,8 @@ namespace Representation {
 	template<GroupType T>
 	inline weight LieBase<T>::chamberRotate(weight w, int &counter)
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "chamberRotate called";
+
 		//ensure omega base and orthogonal base
 		if (w.omega.size() == 0)
 			w.omega = to_omega(w);
@@ -775,6 +840,7 @@ namespace Representation {
 	inline int LieBase<T>::freudenthalsRecursion(weight current, std::vector<weight> domWeights, std::vector<std::pair<int, weight>> stabilizedOrbits)
 	{
 		//Main implementation of the modified algorithm, only the stabilized orbits are included in summing
+		FILE_LOG(Diagnositics::logDEBUG3) << "freudenthalsRecursion called";
 
 		weight highest = domWeights[0];
 
@@ -825,6 +891,8 @@ namespace Representation {
 	template<GroupType T>
 	inline std::vector<std::pair<int, weight>> LieBase<T>::multiplicity(weight highest)
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "multiplicity called";
+
 		/*
 		* This is a helper function for the modified Freudenthal Recursion Formula
 		* R. V. Moody, J. Patera, Fast Recursion Formula for Weight Multiplicities, Bull.Amer.Math.Soc.(N.S.)
@@ -892,6 +960,8 @@ namespace Representation {
 	template<GroupType T>
 	inline std::vector<weight> LieBase<T>::weightTower()
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "weightTower() called";
+
 		std::vector<weight> final_result;
 
 		//concenate all simple orbits
@@ -941,14 +1011,15 @@ namespace Representation {
 	template<GroupType T>
 	inline std::vector<weight> LieBase<T>::weightTower(weight w)
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "weightTower with weight called";
+
 		//Given tower of weights for highest weight 'w'
 
 		//Finding k levels -> think angular quantum numbers
-		int k = k_lvl(w);
-		int j = 2 * k + 1;
 
 		//init tower
-		std::vector<weight> tower = { w };
+		std::vector<weight> tower(2 *  k_lvl(w) + 1);
+		tower[0] =  w ;
 
 		//Build tower by subtracting simple roots from highest weight. Remove artifical degenerencies
 		while (true)
@@ -984,13 +1055,13 @@ namespace Representation {
 		std::vector<weight> dom_weights = dominantWeights(tower);
 		std::vector<std::pair<int, weight>> dom_weights_multi;
 
-		//for (auto i : dom_weights) std::cout << i.omega.transpose() << std::endl;
+
 		//load list of degenerate weights
 		for (auto wt : dom_weights)
 		{
 			int multi = freudenthalsRecursion(wt, dom_weights, multiplicity(wt));
 			dom_weights_multi.push_back({ multi, wt });
-			//std::cout << multi << "   " << wt.omega.transpose() << std::endl;
+
 		}
 
 		//Modified algorithm states that tower is built from weylOrbits of dominantWeights with proper degenerencies
@@ -1017,6 +1088,8 @@ namespace Representation {
 	template<GroupType T>
 	inline std::vector<weight> LieBase<T>::tensorProductDecomp(weight w1, weight w2)
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "tensorProductDecomp called";
+
 		//Algorithm based on Klimyk's formula
 
 		std::vector<weight> tower1 = weightTower(w1);
@@ -1101,25 +1174,25 @@ namespace Representation {
 	}
 
 	template<GroupType T>
-	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_Cartan()
+	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_Cartan() const
 	{
 		return Cartan;
 	}
 
 	template<GroupType T>
-	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_Omega()
+	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_Omega() const
 	{
 		return Omega;
 	}
 
 	template<GroupType T>
-	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_CoCartan()
+	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_CoCartan() const
 	{
 		return CoCartan;
 	}
 
 	template<GroupType T>
-	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_QuadraticForm()
+	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_QuadraticForm() const
 	{
 		return QuadraticForm;
 	}
@@ -1127,6 +1200,8 @@ namespace Representation {
 	template<GroupType T>
 	inline int LieBase<T>::dim(weight w)
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "dim called";
+
 		//ensure omega basis
 		if (w.omega.size() == 0)
 			w.omega = to_omega(w);
@@ -1147,6 +1222,8 @@ namespace Representation {
 	template<GroupType T>
 	inline int LieBase<T>::k_lvl(weight w)
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "k_lvl called";
+
 		if (w.alpha.size() == 0)
 			w.alpha = to_alpha(w);
 
@@ -1157,18 +1234,24 @@ namespace Representation {
 	}
 
 	template<GroupType T>
-	inline void LieBase<T>::testf(std::vector<weight> v)
+	inline std::vector<weight> LieBase<T>::get_simple() const
 	{
-		Matrix<rational<int>, 4, 1> V;
-		V << rational<int>(0), rational<int>(1), rational<int>(0), rational<int>(0);
-		weight t;
-		t.omega = V;
-		auto X = multiplicity(t);
-
-		for (auto i : X)
-			std::cout << "multi: " << i.first << " , weight: " << i.second.omega.transpose() << std::endl;
-
+		return this->simple;
 	}
+
+	template<GroupType T>
+	inline std::vector<weight> LieBase<T>::get_positiver() const
+	{
+		return this->positiver;
+	}
+
+	template<GroupType T>
+	inline std::vector<weight> LieBase<T>::get_fweight() const
+	{
+		return this->fweight;
+	}
+
+
 
 
 }
