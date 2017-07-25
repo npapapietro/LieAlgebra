@@ -13,7 +13,7 @@ addons:
       - gcc-6
       - g++-6
       - cmake
-      - libboost1.64-all-dev
+      - libboost-all-dev
       - libeigen3-dev
 before_install:
    - chmod +x run_prog.sh
