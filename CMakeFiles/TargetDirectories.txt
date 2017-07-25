@@ -1,6 +1,0 @@
-/home/nate/Documents/Repos/LieAlgebra/CMakeFiles/edit_cache.dir
-/home/nate/Documents/Repos/LieAlgebra/CMakeFiles/rebuild_cache.dir
-/home/nate/Documents/Repos/LieAlgebra/CMakeFiles/TESTPLZ.dir
-/home/nate/Documents/Repos/LieAlgebra/libs/CMakeFiles/rebuild_cache.dir
-/home/nate/Documents/Repos/LieAlgebra/libs/CMakeFiles/edit_cache.dir
-/home/nate/Documents/Repos/LieAlgebra/libs/CMakeFiles/libs.dir

@@ -1,2 +1,0 @@
-/usr/bin/ar qc liblibs.a  CMakeFiles/libs.dir/RootStructure.cpp.o
-/usr/bin/ranlib liblibs.a
