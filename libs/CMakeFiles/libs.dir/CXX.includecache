@@ -1,0 +1,42 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/nate/Documents/Repos/LieAlgebra/libs/LoggerLibrary.h
+sstream
+-
+string
+-
+stdio.h
+-
+boost/type_index.hpp
+-
+windows.h
+-
+sys/time.h
+-
+
+/home/nate/Documents/Repos/LieAlgebra/libs/RootStructure.cpp
+RootStructure.h
+/home/nate/Documents/Repos/LieAlgebra/libs/RootStructure.h
+
+/home/nate/Documents/Repos/LieAlgebra/libs/RootStructure.h
+Eigen/Core
+-
+vector
+-
+boost/rational.hpp
+-
+iostream
+-
+algorithm
+-
+memory
+-
+LoggerLibrary.h
+/home/nate/Documents/Repos/LieAlgebra/libs/LoggerLibrary.h
+

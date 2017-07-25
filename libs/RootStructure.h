@@ -3,7 +3,6 @@
 
 
 #include<Eigen/Core>
-#include<Eigen/LU>
 #include<vector>
 #include<boost/rational.hpp>
 #include<iostream>
@@ -11,7 +10,7 @@
 #include<memory>
 #include"LoggerLibrary.h"
 
-
+// Tells Eigen how to handle type
 namespace Eigen {
 	template<> struct NumTraits<boost::rational<int>> :GenericNumTraits<boost::rational<int>> {
 		enum {
@@ -212,7 +211,8 @@ namespace Representation {
 		A,
 		B,
 		C,
-		D
+		D,
+		G
 	};
 
 	/*
@@ -297,7 +297,7 @@ namespace Representation {
 		VectorXr to_ortho(weight V);
 
 		LieBase (){}
-		LieBase(size_t Rank);
+		LieBase(const size_t Rank);
  		virtual ~LieBase() {};
 		virtual LieBase * clone() const{ return new LieBase(*this); }
 		LieBase(const LieBase&) = default;
@@ -491,7 +491,7 @@ namespace Representation {
 		else if (V.omega.size() != 0)
 			return Omega.transpose() * V.omega;
 		else
-			return Omega.transpose() * Cartan.transpose()*V.alpha;
+			return Omega.transpose() * Cartan.transpose() * V.alpha;
 
 	}
 
@@ -499,7 +499,7 @@ namespace Representation {
 *		Constructor
 */
 	template<GroupType T>
-	inline LieBase<T>::LieBase(size_t Rank)
+	inline LieBase<T>::LieBase(const size_t Rank)
 	{
 		FILE_LOG(Diagnositics::logDEBUG2) << "LieBase Constructor rank "<<Rank<<" called";
 
@@ -511,10 +511,12 @@ namespace Representation {
 
 	}
 
+
+
 	template<>
 	inline void LieBase<GroupType::A>::createOrtho()
 	{
-		FILE_LOG(Diagnositics::logDEBUG2) << "createOrtho A called";
+		FILE_LOG(Diagnositics::logDEBUG3) << "createOrtho A called";
 
 		//Create Identity matrix
 		MatrixXr Id_1 = Identity(Rank + 1);
@@ -529,7 +531,7 @@ namespace Representation {
 			temp_w.omega = Id_2.row(i);
 			simple.push_back(temp_r);
 			fweight.push_back(temp_w);
-			FILE_LOG(Diagnositics::logDEBUG3) << temp_w.omega.transpose();
+			FILE_LOG(Diagnositics::logDEBUG4) << temp_w.omega.transpose();
 
 		}
 
@@ -702,6 +704,39 @@ namespace Representation {
 		}
 	}
 
+	template<>
+	inline void LieBase<GroupType::G>::createOrtho()
+	{
+		FILE_LOG(Diagnositics::logDEBUG2) << "createOrtho G called";
+
+		//Creates orthogonal simple roots, 
+		Matrix<rational<int>, 3, 1> simportho1(rational<int>(0),rational<int>(1),rational<int>(-1));
+		Matrix<rational<int>, 3, 1> simportho2(rational<int>(1),rational<int>(-2),rational<int>(1));
+
+		weight w1,w2;
+		w1.ortho = simportho1;
+		w2.ortho = simportho2;
+
+		simple.push_back(w1);
+		simple.push_back(w2);
+
+		//Create Identity matrix
+		MatrixXr Id_1 = Identity(Rank);
+
+		//Creates omega fundamental weights
+		for (size_t i = 0; i < Rank; i++)
+		{
+			weight temp_w;
+			temp_w.omega = Id_1.row(i);
+			fweight.push_back(temp_w);
+		}
+
+		//Creates orthogonal positive roots
+
+		//not implemented in this group
+	}
+
+
 	template<GroupType T>
 	inline void LieBase<T>::createMatrices()
 	{
@@ -741,6 +776,40 @@ namespace Representation {
 	inline void LieBase<GroupType::A>::createMatrices()
 	{
 		FILE_LOG(Diagnositics::logDEBUG2) << "createMatrices A called";
+
+		Cartan.resize(Rank, Rank);
+		//Cartan Defined
+		for (size_t i = 0; i < Rank; i++)
+		{
+			for (size_t j = 0; j < Rank; j++)
+			{
+				Cartan(i, j) = master_formula<rational<int>>(simple[j].ortho, simple[i].ortho);
+			}
+		}
+
+		CoCartan.resize(Rank, Rank + 1);
+
+		for (size_t i = 0; i < Rank; i++)
+		{
+			CoCartan.row(i) = 2 * simple[i].ortho / (simple[i].ortho.dot(simple[i].ortho));
+		}
+		Omega = (PseudoInverse<rational<int>>(CoCartan)).transpose();
+
+		//QuadraticForm Defined
+		QuadraticForm.resize(Rank, Rank);
+		MatrixXr temp;
+		temp.resize(Rank, Rank);
+		for (size_t i = 0; i < Rank; i++)
+		{
+			temp(i, i) = rational<int>(1, 2)*simple[i].ortho.dot(simple[i].ortho);
+		}
+
+		QuadraticForm = RationalInverse<rational<int>>(Cartan) * temp;
+	}
+		template<>
+	inline void LieBase<GroupType::G>::createMatrices()
+	{
+		FILE_LOG(Diagnositics::logDEBUG2) << "createMatrices G called";
 
 		Cartan.resize(Rank, Rank);
 		//Cartan Defined
@@ -1170,30 +1239,35 @@ namespace Representation {
 	template<GroupType T>
 	size_t LieBase<T>::get_Rank()
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "get_Rank called";
 		return Rank;
 	}
 
 	template<GroupType T>
 	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_Cartan() const
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "get_Cartan called";
 		return Cartan;
 	}
 
 	template<GroupType T>
 	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_Omega() const
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "get_Omega called";
 		return Omega;
 	}
 
 	template<GroupType T>
 	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_CoCartan() const
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "get_CoCartan called";
 		return CoCartan;
 	}
 
 	template<GroupType T>
 	inline Matrix<rational<int>, Dynamic, Dynamic> LieBase<T>::get_QuadraticForm() const
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "get_QuadraticForm called";
 		return QuadraticForm;
 	}
 
@@ -1236,23 +1310,42 @@ namespace Representation {
 	template<GroupType T>
 	inline std::vector<weight> LieBase<T>::get_simple() const
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "get_simple called";
 		return this->simple;
 	}
 
 	template<GroupType T>
 	inline std::vector<weight> LieBase<T>::get_positiver() const
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "get_positiver called";
 		return this->positiver;
 	}
 
 	template<GroupType T>
 	inline std::vector<weight> LieBase<T>::get_fweight() const
 	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "get_fweight called";
 		return this->fweight;
 	}
 
 
+	template<>
+	inline LieBase<GroupType::G>::LieBase(const size_t Rank)
+	{
+		FILE_LOG(Diagnositics::logDEBUG2) << "LieBase Constructor rank "<<Rank<<" called";
+		
+		if (Rank != 2)
+		{
+			FILE_LOG(Diagnositics::logWARNING) << "Lie Group 'G' is only defined for Rank 2. Rank was autoset 'Rank = 2'.";
+		}
 
+		this->Rank = 2;
+		this->Group = GroupType::G;
+		createOrtho();
+		createMatrices();
+		createAllBases();
+
+	}
 
 }
 
