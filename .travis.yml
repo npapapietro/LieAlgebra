@@ -15,7 +15,6 @@ addons:
       - cmake
       - libboost-all-dev
 before_install:
-   - sudo apt update
    - sudo apt-get update
    - sudo apt-get install libeigen3-dev
 script:
