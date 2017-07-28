@@ -17,6 +17,8 @@ before_install:
    - sudo apt-get install libeigen3-dev
    - sudo mkdir /usr/include/Eigen
    - sudo rsync -av /usr/include/eigen3/Eigen /usr/include/Eigen
+   - ls /usr/include
+
 script:
   # Link gcc-6 and g++-6 to their standard commands
   - sudo ln -s /usr/bin/gcc-6 /usr/local/bin/gcc
