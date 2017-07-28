@@ -1,1 +1,0 @@
-/usr/bin/c++    -w -std=c++14   CMakeFiles/TESTPLZ.dir/main.cpp.o  -o TESTPLZ -rdynamic libs/liblibs.a 
