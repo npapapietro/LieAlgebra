@@ -5,6 +5,7 @@
 */
 using namespace std;
 using namespace Representation;
+
 int main(int argc, char const ** argv)
 {
 
@@ -17,13 +18,13 @@ int main(int argc, char const ** argv)
 
 	}
 
-    LieBase<GroupType::G> f(3);
+    LieBase<GroupType::G> f(2);
 
-    //auto roots = f.get_simple();
-
-    for (const auto& i: f.weightTower())
-    {
-        cout<< i.omega.transpose() << endl;
-    }
+    // for (const auto& i: f.get_positiver())
+    // {
+    //     cout<<i.ortho.transpose()<<endl;
+    // }
+    cout<<f.get_Cartan()<<endl;
+    
     return 0;
 }

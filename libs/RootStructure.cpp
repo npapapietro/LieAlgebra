@@ -103,6 +103,79 @@ namespace Representation {
 		return *this;
 	}
 
+	weight weight::operator+(const weight& rhs)
+	{
+		weight new_result;
+
+		if (this->omega.size() != 0 && rhs.omega.size() != 0)
+		{
+			new_result.omega= this->omega + rhs.omega;
+		}		
+		if (this->alpha.size() != 0 && rhs.alpha.size() != 0)
+		{
+			new_result.alpha = this->alpha + rhs.alpha;
+		}
+		if (this->ortho.size() != 0 && rhs.ortho.size() != 0)
+		{
+			new_result.ortho = this->ortho + rhs.ortho;
+		}
+		return new_result;
+	}
+
+	weight weight::operator*(int i)
+	{
+		weight new_result;
+
+		if (this->omega.size() != 0)
+		{
+			new_result.omega = this->omega * i;
+		}		
+		if (this->alpha.size() != 0)
+		{
+			new_result.alpha = this->alpha * i;
+		}
+		if (this->ortho.size() != 0)
+		{
+			new_result.ortho = this->ortho * i;
+		}
+		return new_result;
+	}
+	weight operator*(int i, const weight& rhs)
+	{
+		weight new_result;
+
+		if (rhs.omega.size() != 0)
+		{
+			new_result.omega = rhs.omega * i;
+		}		
+		if (rhs.alpha.size() != 0)
+		{
+			new_result.alpha = rhs.alpha * i;
+		}
+		if (rhs.ortho.size() != 0)
+		{
+			new_result.ortho = rhs.ortho * i;
+		}
+		return new_result;
+	}
+	weight operator*(const weight& rhs, int i)
+	{
+		weight new_result;
+
+		if (rhs.omega.size() != 0)
+		{
+			new_result.omega = rhs.omega * i;
+		}		
+		if (rhs.alpha.size() != 0)
+		{
+			new_result.alpha = rhs.alpha * i;
+		}
+		if (rhs.ortho.size() != 0)
+		{
+			new_result.ortho = rhs.ortho * i;
+		}
+		return new_result;
+	}
 	//omega init weight
 	weight::weight(VectorXr omega)
 	{
