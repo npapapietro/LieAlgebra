@@ -15,7 +15,7 @@ addons:
       - libboost-all-dev
 before_install:
    - sudo apt-get install libeigen3-dev
-   - sudo cp -a /usr/include/eigen3/Eigen/. /usr/include/
+   - sudo cp -a /usr/include/eigen3/. /usr/include/
    - ls /usr/include/Eigen
 
 script:
