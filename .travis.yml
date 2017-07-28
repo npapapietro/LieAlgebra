@@ -16,7 +16,7 @@ addons:
 before_install:
    - sudo apt-get install libeigen3-dev
    - sudo mkdir /usr/include/Eigen
-   - sudo cp /usr/include/eigen3/Eigen /usr/include/
+   - sudo cp -a /usr/include/eigen3/Eigen/. /usr/include/
    - ls /usr/include/Eigen
 
 script:
