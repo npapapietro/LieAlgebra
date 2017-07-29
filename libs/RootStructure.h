@@ -5,6 +5,7 @@
 #include<Eigen/Core>
 #include<vector>
 #include<boost/rational.hpp>
+#include<boost/type_index.hpp>
 #include<iostream>
 #include<algorithm>
 #include<memory>
