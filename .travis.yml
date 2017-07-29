@@ -1,4 +1,4 @@
-dist: trusty
+dist: zesty
 sudo: require
 language:
   - cpp
@@ -12,11 +12,8 @@ addons:
       - gcc-6
       - g++-6
       - cmake
+      - libboost-all-dev
 before_install:
-   - sudo apt-add-repository ppa:timklingt/ppa
-   - sudo apt-get update
-   - sudo apt-get install libboost1.63-all-dev
-   - sudp cp -a /usr/include/boost_
    - sudo apt-get install libeigen3-dev
    - sudo cp -a /usr/include/eigen3/. /usr/include/
 script:
