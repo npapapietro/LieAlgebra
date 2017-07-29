@@ -12,10 +12,9 @@ addons:
       # - gcc-6
       # - g++-6
       - cmake
-      - libboost-all-dev
 before_install:
    - sudo apt-get install libeigen3-dev
-   - sudo apt-get install libboost-all-dev
+   - sudo apt-get install libboost1.64-all-dev
    - sudo cp -a /usr/include/eigen3/. /usr/include/
 script:
   # Link gcc-6 and g++-6 to their standard commands
