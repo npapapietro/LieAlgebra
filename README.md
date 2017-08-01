@@ -15,7 +15,7 @@ To choose a group's algebra simply initialize the class with the desired dimensi
 
 Example:
 ```
-#include "RootStructure.h"
+#include "libs/RootStructure.h"
 
 
 using namespace Eigen;
@@ -24,7 +24,7 @@ using std::cout;
 using std::endl;
 int main() {
 	
-	LieBase<A> G(2);
+	LieBase<GroupType::A> G(2);
 	
 	Eigen::Matrix<boost::rational<int>,2, 1> x,y;
 
