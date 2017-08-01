@@ -61,7 +61,7 @@ int main() {
 
 ## Current Update
 
-V2 
+Added expetional groups 
 
 ## Next Update
-Redo the Qt application with the new backend. Possibly add exceptional groups
+Improve my naive algorithms for speeds ups
