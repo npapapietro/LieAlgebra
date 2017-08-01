@@ -61,7 +61,7 @@ int main() {
 
 ## Current Update
 
-Added expetional groups 
+Added exceptional groups 
 
 ## Next Update
 Improve my naive algorithms for speeds ups
