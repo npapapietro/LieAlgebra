@@ -5,6 +5,7 @@
 */
 using namespace std;
 using namespace Representation;
+using namespace boost;
 
 int main(int argc, char const ** argv)
 {
@@ -18,13 +19,17 @@ int main(int argc, char const ** argv)
 
 	}
 
-    LieBase<GroupType::G> f(2);
 
-    // for (const auto& i: f.get_positiver())
+    LieBase<GroupType::A> f(5);
+
+    //cout << "Positive Roots\n";
+    f.weightTower();
+
+    // for (const auto& i: f.weightTower())
     // {
-    //     cout<<i.ortho.transpose()<<endl;
+    //     cout<<int_cast_Vector(i.omega).transpose()<<endl;
     // }
-    cout<<f.get_Cartan()<<endl;
+
     
     return 0;
 }

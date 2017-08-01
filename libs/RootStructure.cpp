@@ -23,6 +23,7 @@ namespace Representation {
 	MatrixXi int_cast_Matrix(Matrix<rational<int>, Dynamic, Dynamic> X)
 	{
 		MatrixXi v = MatrixXi::Zero(X.size(),X.size());
+		#pragma omp parallel for collapse(2)
 		for (int i = 0; i < X.rows(); i++)
 		{
 			for (int j = 0; j < X.cols(); j++)
@@ -38,6 +39,8 @@ namespace Representation {
 		{
 			Matrix<rational<int>, Dynamic, Dynamic> M;
 			M.resize(size, size);
+
+			#pragma omp parallel for collapse(2)
 			for (int i = 0; i < size; i++)
 			{
 				for (int j = 0; j < size; j++)
@@ -53,6 +56,8 @@ namespace Representation {
 	VectorXi int_cast_Vector(Matrix<rational<int>, Dynamic, 1> X)
 	{
 		VectorXi v = VectorXi::Zero(X.size());
+
+		#pragma omp parallel for
 		for (int i = 0; i < X.size(); i++)
 			v(i) = rational_cast<int>(X(i));
 
@@ -140,6 +145,24 @@ namespace Representation {
 		}
 		return new_result;
 	}
+
+	bool weight::operator<(const weight&w) const
+	{
+		//assert(w.omega.size()==0);
+		//use omega basis
+		int i = 0;
+		while (i < omega.size()) {
+			if (omega(i) < w.omega(i))
+				return true;
+			else if (omega(i) == w.omega(i))
+				i++;
+			else
+				return false;
+		}
+		return false;		
+	}
+
+
 	weight operator*(int i, const weight& rhs)
 	{
 		weight new_result;

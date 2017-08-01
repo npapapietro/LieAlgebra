@@ -1,0 +1,1 @@
+/usr/bin/c++    -fopenmp -w -std=c++1y   CMakeFiles/TESTPLZ.dir/main.cpp.o  -o TESTPLZ -rdynamic libs/liblibs.a 

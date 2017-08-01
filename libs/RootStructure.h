@@ -9,7 +9,14 @@
 #include<iostream>
 #include<algorithm>
 #include<memory>
+#include<set>
+#include<omp.h>
+#include<ctime>
 #include"LoggerLibrary.h"
+
+
+#define ELAP_T(Time) std::cout<<double(std::clock() - Time) / CLOCKS_PER_SEC<<std::endl; 
+
 
 // Tells Eigen how to handle type
 namespace Eigen {
@@ -37,6 +44,7 @@ namespace Representation {
 		bool is_empty();
 
 		bool operator==(const weight& w);
+		bool operator<(const weight&w) const;
 		weight& operator=(const weight& w);
 		weight operator+(const weight& rhs);
 		weight operator*(int i);
@@ -59,6 +67,7 @@ namespace Representation {
 	bool is_pos(Matrix<T, Dynamic, 1> V)
 	{
 		FILE_LOG(Diagnositics::logDEBUG4) << "Is Positive called with type " << boost::typeindex::type_id<T>().pretty_name();
+		
 		for (int i = 0; i < V.size(); i++)
 		{
 			if (V(i) < 0)
@@ -92,6 +101,8 @@ namespace Representation {
 		Matrix<T, Dynamic, Dynamic> M;
 		M.resize(V.size(), V.size());
 		Matrix<T, Dynamic, Dynamic> I = Identity(V.size());
+
+		#pragma omp parallel for collapse(2)
 		for (int i = 0; i < V.size(); i++)
 		{
 			for (int j = 0; j < V.size(); j++)
@@ -121,6 +132,7 @@ namespace Representation {
 		{
 			det = 0;
 
+			#pragma omp parallel for
 			for (int j1 = 0; j1 < n; j1++)
 			{
 				m.resize(n - 1, n - 1);
@@ -154,6 +166,7 @@ namespace Representation {
 		c.resize(n - 1, n - 1);
 		m.resize(n, n);
 
+		#pragma omp parallel for collapse(2)
 		for (int j = 0; j < n; j++)
 		{
 			for (int i = 0; i < n; i++)
@@ -221,7 +234,8 @@ namespace Representation {
 		C,
 		D,
 		G,
-		F
+		F,
+		E
 	};
 
 	/*
@@ -284,8 +298,10 @@ namespace Representation {
 		void createOrtho();
 		void createMatrices();
 		void createAllBases();
+		void createExceptionalPositiveRoots();
 
 		weight chamberRotate(weight w, int& counter);
+		
 
 		int freudenthalsRecursion(weight current, std::vector<weight> domWeights, std::vector<std::pair<int, weight>> stabilizedOrbits);
 
@@ -336,41 +352,42 @@ namespace Representation {
 	{
 		FILE_LOG(Diagnositics::logDEBUG3) << "weylOrbit called";
 
-		std::vector<weight> master_list = { head };
-
+		std::set<weight> master_list = { head };
+		auto begin = std::clock();
 		while (true)
 		{
 			//list of reflected weights
-			std::vector<weight> reflected_list;
-
+			std::set<weight> reflected_list;
+			
 			//iterate through master list
 			for (auto i : master_list)
-			{
+			{				
 				//iterate through selected simple roots that stabilize the weight
-				for (size_t j = 0; j < simple.size(); j++)
+				for (auto j : simple)
 				{
 					//check if weight has ortho already, if not give it one
 					if (i.ortho.size() == 0)
 						i.ortho = to_ortho(i);
 
 					/*
-					* Generate reflected weight by reflecting i from masterlist by simple root j
+					* Generate reflected weight by reflecting item from masterlist by simple root j
 					* Reflections are done in the ortho base, then we generate the omega base for
 					* reflected weight (we neglect alpha for the moment)
 					*/
 					weight reflected;
 
-					MatrixXr Reflector = ReflectionMatrix<rational<int>>(simple[j].ortho);
+					MatrixXr Reflector = ReflectionMatrix<rational<int>>(j.ortho);
 					reflected.ortho = Reflector * i.ortho;
 					reflected.omega = to_omega(reflected);
 
 					//Check to see if new reflected weight is unique
-					auto findmaster = std::find(master_list.begin(), master_list.end(), reflected);
-					auto findreflected = std::find(reflected_list.begin(), reflected_list.end(), reflected);
+					auto findmaster = master_list.find(reflected);
+					auto findreflected = reflected_list.find(reflected);
 					if (findmaster == master_list.end() && findreflected == reflected_list.end())
-						reflected_list.push_back(reflected);
+						reflected_list.insert(reflected);
 
 				}
+				
 			}
 
 			//If no new reflections are made, stop. All have been found
@@ -378,13 +395,13 @@ namespace Representation {
 				break;
 
 			//concatenate reflected list with master list
-			std::vector<weight> temp;
-			temp.reserve(reflected_list.size() + master_list.size());
-			temp.insert(temp.end(), master_list.begin(), master_list.end());
-			temp.insert(temp.end(), reflected_list.begin(), reflected_list.end());
+			std::set<weight> temp;
+			//temp.reserve(reflected_list.size() + master_list.size());
+			temp.insert(master_list.begin(), master_list.end());
+			temp.insert(reflected_list.begin(), reflected_list.end());
 			master_list = temp;
-		}
-		return master_list;
+		}ELAP_T(begin)
+		return std::vector<weight>(master_list.begin(),master_list.end());
 	}
 
 	template<GroupType T>
@@ -530,6 +547,7 @@ namespace Representation {
 		MatrixXr Id_2 = Identity(Rank);
 
 		//Creates orthogonal simple roots, omega fundamental weights
+		//#pragma omp parallel for
 
 		for (size_t i = 0; i < Rank; i++)
 		{
@@ -538,12 +556,11 @@ namespace Representation {
 			temp_w.omega = Id_2.row(i);
 			simple.push_back(temp_r);
 			fweight.push_back(temp_w);
-			FILE_LOG(Diagnositics::logDEBUG4) << temp_w.omega.transpose();
-
 		}
 
 		//Creates orthogonal positive roots
 		//ei-ej
+		
 		for (size_t j = 1; j <= Rank; j++)
 		{
 			for (size_t i = 0; i < j; i++)
@@ -711,8 +728,9 @@ namespace Representation {
 		FILE_LOG(Diagnositics::logDEBUG3) << "createOrtho G called";
 
 		//Creates orthogonal simple roots, 
-		Matrix<rational<int>, 3, 1> simportho1(rational<int>(0),rational<int>(1),rational<int>(-1));
-		Matrix<rational<int>, 3, 1> simportho2(rational<int>(1),rational<int>(-2),rational<int>(1));
+		Matrix<rational<int>, 3, 1> simportho1, simportho2;
+		simportho1 << rational<int>(0), rational<int>(1), rational<int>(-1);
+		simportho2 << rational<int>(1), rational<int>(-2), rational<int>(1);
 
 		weight w1,w2;
 		w1.ortho = simportho1;
@@ -732,8 +750,7 @@ namespace Representation {
 			fweight.push_back(temp_w);
 		}
 
-		//Creates orthogonal positive roots
-		positiver = {w1,w2,w1+w2,2 * w1+w2,w1*3+w2};
+		//Orthogonal positive roots are created in createAllBases()	
 		
 	}
 
@@ -743,10 +760,11 @@ namespace Representation {
 		FILE_LOG(Diagnositics::logDEBUG3) << "createOrtho F called";
 
 		//Creates orthogonal simple roots, 
-		Matrix<rational<int>, 4, 1> simportho1(rational<int>(0),rational<int>(1),rational<int>(-1),rational<int>(0));
-		Matrix<rational<int>, 4, 1> simportho2(rational<int>(0),rational<int>(0),rational<int>(1),rational<int>(-1));
-		Matrix<rational<int>, 4, 1> simportho3(rational<int>(0),rational<int>(0),rational<int>(0),rational<int>(1));
-		Matrix<rational<int>, 4, 1> simportho4(rational<int>(1,2),rational<int>(-1,2),rational<int>(-1,2),rational<int>(-1,2));
+		Matrix<rational<int>, 4, 1> simportho1, simportho2,simportho3, simportho4;
+		simportho1 << rational<int>(0),rational<int>(1),rational<int>(-1),rational<int>(0);
+		simportho2 << rational<int>(0),rational<int>(0),rational<int>(1),rational<int>(-1);
+		simportho3 << rational<int>(0),rational<int>(0),rational<int>(0),rational<int>(1);
+		simportho4 << rational<int>(1,2),rational<int>(-1,2),rational<int>(-1,2),rational<int>(-1,2);
 
 		weight w1,w2,w3,w4;
 		w1.ortho = simportho1;
@@ -770,9 +788,119 @@ namespace Representation {
 			fweight.push_back(temp_w);
 		}
 
-		//Creates orthogonal positive roots
+		//Orthogonal positive roots are created in createAllBases()
+	}
 
-		//not implemented in this group
+	template<>
+	inline void LieBase<GroupType::E>::createOrtho()
+	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "createOrtho E called";
+		//Creates orthogonal simple roots
+
+		MatrixXr Id = Identity(8);
+		auto half = rational<int>(1,2);
+
+		weight w1,w2,w3,w4,w5,w6;
+
+		Matrix<rational<int>,8,1> temp;
+		temp << half, -half, -half, -half, -half, -half, -half, half;
+
+		w1.ortho = temp;
+		w2.ortho = Id.row(1) - Id.row(0);
+		w3.ortho = Id.row(2) - Id.row(1);
+		w4.ortho = Id.row(3) - Id.row(2);
+		w5.ortho = Id.row(4) - Id.row(3);
+		w6.ortho = Id.row(0) + Id.row(1);
+
+		if (Rank == 6)
+		{
+			FILE_LOG(Diagnositics::logDEBUG4) << "Rank 6 called";			
+			simple = std::vector<weight>{ w1, w2, w3, w4, w5, w6};
+		}
+		else if (Rank == 7)
+		{
+			FILE_LOG(Diagnositics::logDEBUG4) << "Rank 7 called";
+			weight w7;
+			w7.ortho = Id.row(5) - Id.row(4);			
+
+			simple = std::vector<weight>{ w1, w2, w3, w4, w5, w7, w6 };
+		}
+		else if (Rank == 8)
+		{
+			FILE_LOG(Diagnositics::logDEBUG4) << "Rank 8 called";
+			weight w7, w8;
+
+			w7.ortho = Id.row(5) - Id.row(4);			
+			w8.ortho = Id.row(6) - Id.row(5);	
+
+			simple = std::vector<weight>{ w1, w2, w3, w4, w5, w7, w8, w6};
+		}
+		else
+		{
+			FILE_LOG(Diagnositics::logERROR) << "Wrong rank called, no roots created.";
+		}
+
+
+
+		//Create Identity matrix
+		MatrixXr Id_1 = Identity(Rank);
+
+		//Creates omega fundamental weights
+		for (size_t i = 0; i < Rank; i++)
+		{
+			weight temp_w;
+			temp_w.omega = Id_1.row(i);
+			fweight.push_back(temp_w);
+		}
+	}
+
+	template<GroupType T>
+	inline void LieBase<T>::createExceptionalPositiveRoots()
+	{
+		FILE_LOG(Diagnositics::logDEBUG4) << "createExceptionalPositiveRoots called";
+
+		using namespace std;
+		std::vector<weight> init_loop(simple.begin(),simple.end());
+		std::set<weight> temp_positiver(simple.begin(),simple.end());
+
+		//check every simple root
+		bool complete = false;
+		while(!complete){
+			std::vector<weight> this_loop = init_loop;
+			init_loop.clear();
+			
+			for (int j = 0; j < this_loop.size(); j++)
+			{
+				auto simp = this_loop[j].omega;
+				int entry;
+				//in the omega basis, if the 'i-th' entry is checks the (p-q) value
+				#pragma omp parallel for
+				for (int i = 0; i < simp.size(); i++)
+				{
+					//if the 'i-th' entry is <0, then add the 'i-th' simple root to it
+					entry = rational_cast<int>(simp(i));
+					while(entry < 0)
+					{
+						weight new_pos_root(simp + (-entry) * simple[i].omega);
+						
+						// check to see if this root is unique
+						auto is_unique = temp_positiver.find(new_pos_root);
+
+						if (is_unique==temp_positiver.end())
+						{
+							temp_positiver.insert(new_pos_root);
+							init_loop.push_back(new_pos_root);
+						}
+						entry++;
+					}
+				}
+			}
+			if(init_loop.empty())
+			{
+				complete = true;
+			}			
+		}
+		positiver = std::vector<weight>(temp_positiver.begin(), temp_positiver.end());
 	}
 
 	template<GroupType T>
@@ -880,6 +1008,44 @@ namespace Representation {
 		QuadraticForm = RationalInverse<rational<int>>(Cartan) * temp;
 	}
 
+	template<>
+	inline void LieBase<GroupType::E>::createMatrices()
+	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "createMatrices E called";
+
+		Cartan.resize(Rank, Rank);
+		//Cartan Defined
+		for (size_t i = 0; i < Rank; i++)
+		{
+			for (size_t j = 0; j < Rank; j++)
+			{
+				Cartan(i, j) = master_formula<rational<int>>(simple[j].ortho, simple[i].ortho);
+			}
+		}
+
+
+		CoCartan.resize(Rank, 8);
+
+		for (size_t i = 0; i < Rank; i++)
+		{
+			CoCartan.row(i) = 2 * simple[i].ortho / (simple[i].ortho.dot(simple[i].ortho));
+		}
+
+		
+		Omega = (PseudoInverse<rational<int>>(CoCartan)).transpose();
+
+		//QuadraticForm Defined
+		QuadraticForm.resize(Rank, Rank);
+		MatrixXr temp;
+		temp.resize(Rank, Rank);
+		for (size_t i = 0; i < Rank; i++)
+		{
+			temp(i, i) = rational<int>(1, 2)*simple[i].ortho.dot(simple[i].ortho);
+		}
+
+		QuadraticForm = RationalInverse<rational<int>>(Cartan) * temp;
+	}
+
 	template<GroupType T>
 	inline void LieBase<T>::createAllBases()
 	{
@@ -892,11 +1058,94 @@ namespace Representation {
 			simple[i].omega = to_omega(simple[i]);
 		}
 
+
 		//create all bases for positive roots
 		for (size_t i = 0; i < positiver.size(); i++)
 		{
 			positiver[i].alpha = to_alpha(positiver[i]);
 			positiver[i].omega = to_omega(positiver[i]);
+		}
+
+		//Create rho, needed for dim and freudenthalRecursion
+		//init rho vector = (1,1,1...)
+		rho.resize(Rank);
+		for (size_t i = 0; i < Rank; i++)
+			rho(i) = rational<int>(1);
+
+	}
+	template<>
+	inline void LieBase<GroupType::G>::createAllBases()
+	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "createAllBases called";
+
+		//create all bases for simple roots
+		for (size_t i = 0; i < simple.size(); i++)
+		{
+			simple[i].alpha = to_alpha(simple[i]);
+			simple[i].omega = to_omega(simple[i]);
+		}
+
+		createExceptionalPositiveRoots();
+		//create all bases for positive roots
+		for (size_t i = 0; i < positiver.size(); i++)
+		{
+			positiver[i].alpha = to_alpha(positiver[i]);
+			positiver[i].ortho = to_ortho(positiver[i]);
+		}
+
+		//Create rho, needed for dim and freudenthalRecursion
+		//init rho vector = (1,1,1...)
+		rho.resize(Rank);
+		for (size_t i = 0; i < Rank; i++)
+			rho(i) = rational<int>(1);
+
+	}
+	template<>
+	inline void LieBase<GroupType::F>::createAllBases()
+	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "createAllBases called";
+
+		//create all bases for simple roots
+		for (size_t i = 0; i < simple.size(); i++)
+		{
+			simple[i].alpha = to_alpha(simple[i]);
+			simple[i].omega = to_omega(simple[i]);
+		}
+
+		createExceptionalPositiveRoots();
+		//create all bases for positive roots
+		for (size_t i = 0; i < positiver.size(); i++)
+		{
+			positiver[i].alpha = to_alpha(positiver[i]);
+			positiver[i].ortho = to_ortho(positiver[i]);
+		}
+
+		//Create rho, needed for dim and freudenthalRecursion
+		//init rho vector = (1,1,1...)
+		rho.resize(Rank);
+		for (size_t i = 0; i < Rank; i++)
+			rho(i) = rational<int>(1);
+
+	}
+
+	template<>
+	inline void LieBase<GroupType::E>::createAllBases()
+	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "createAllBases called";
+
+		//create all bases for simple roots
+		for (size_t i = 0; i < simple.size(); i++)
+		{
+			simple[i].alpha = to_alpha(simple[i]);
+			simple[i].omega = to_omega(simple[i]);
+		}
+
+		createExceptionalPositiveRoots();
+		//create all bases for positive roots
+		for (size_t i = 0; i < positiver.size(); i++)
+		{
+			positiver[i].alpha = to_alpha(positiver[i]);
+			positiver[i].ortho = to_ortho(positiver[i]);
 		}
 
 		//Create rho, needed for dim and freudenthalRecursion
@@ -1073,8 +1322,10 @@ namespace Representation {
 		std::vector<weight> final_result;
 
 		//concenate all simple orbits
+
 		for (auto i : simple)
 		{
+			
 			std::vector<weight> orbit = weylOrbit(i);
 			final_result.insert(final_result.end(), orbit.begin(), orbit.end());
 		}
@@ -1401,8 +1652,24 @@ namespace Representation {
 		createAllBases();
 	}
 
+	template<>
+	inline LieBase<GroupType::E>::LieBase(const size_t Rank)
+	{
+		FILE_LOG(Diagnositics::logDEBUG2) << "LieBase Constructor rank "<<Rank<<" called";
+		
+		if (Rank != 6 && Rank != 7 && Rank != 8)
+		{
+			FILE_LOG(Diagnositics::logERROR) << "Lie Group 'E' is only defined for Rank 6, 7, 8";
+		}
+		else
+		{
+			this->Rank = Rank;
+			this->Group = GroupType::E;
+			createOrtho();
+			createMatrices();
+			createAllBases();
+		}
+	}
+
 }
-
-
-
 #endif // !REPRESENTATION_LIEALGEBRA_H
