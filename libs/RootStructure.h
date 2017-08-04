@@ -19,14 +19,48 @@
 
 
 // Tells Eigen how to handle type
-namespace Eigen {
+namespace Eigen 
+{
 	template<> struct NumTraits<boost::rational<int>> :GenericNumTraits<boost::rational<int>> {
 		enum {
 			IsInteger = 1,
 		};
 	};
-}
+} // namespace Eigen
 
+namespace boost
+{
+#ifndef BOOST_NO_IOSTREAM
+
+inline std::ostream& operator<< (std::ostream& os, const rational<int>& r)
+{
+    // The slash directly precedes the denominator, which has no prefixes.
+    std::ostringstream  ss;
+
+    ss.copyfmt( os );
+    ss.tie( NULL );
+    ss.exceptions( std::ios::goodbit );
+    ss.width( 0 );
+    ss << std::noshowpos << std::noshowbase << '/' << r.denominator();
+
+    // The numerator holds the showpos, internal, and showbase flags.
+    std::string const   tail = ss.str();
+    std::streamsize const  w =
+        os.width() - static_cast<std::streamsize>( tail.size() );
+
+    ss.clear();
+    ss.str( "" );
+    ss.flags( os.flags() );
+    ss << std::setw( w < 0 || (os.flags() & std::ios::adjustfield) !=
+                     std::ios::internal ? 0 : w ) << r.numerator();
+
+	if (r.denominator() == 1)
+		return os << ss.str();
+	else
+    	return os << ss.str() + tail;
+}
+#endif  // BOOST_NO_IOSTREAM
+} // namespace boost
 namespace Representation {
 	using namespace boost;
 	using namespace Eigen;
@@ -49,7 +83,6 @@ namespace Representation {
 		weight operator+(const weight& rhs);
 		weight operator*(int i);
 
-
 		weight() {}
 		weight(VectorXr omega);
 	};
@@ -62,6 +95,72 @@ namespace Representation {
 	/*
 	*           Helper functions
 	*/
+	MatrixXi int_cast_Matrix(Matrix<rational<int>, Dynamic, Dynamic> X);
+
+	Matrix<rational<int>, Dynamic, Dynamic> Identity(int size);
+
+	template<typename T>
+	void PartialPivot(Matrix<T,Dynamic,Dynamic> &m)
+	{
+		FILE_LOG(Diagnositics::logDEBUG4) << "partial pivot";
+		int N = m.rows();
+		for (int i = N-1; i > 0; i--)
+		{
+			if(m(i-1,0) < m(i,0))
+			{
+				m.row(i-1).swap(m.row(i));
+			}
+		}
+	}
+
+	template<typename T>
+	Matrix<T,Dynamic,Dynamic> RationalInverse(Matrix<T,Dynamic,Dynamic> m)
+	{
+		FILE_LOG(Diagnositics::logDEBUG3) << "RationalInverse";
+		
+		int N = m.rows();
+
+		auto Id = Identity(N);
+
+		// Concatenate m with identity
+
+		Matrix<T,Dynamic,Dynamic> M (m.rows(), m.cols() + Id.cols());
+		M << m, Id;
+
+		FILE_LOG(Diagnositics::logDEBUG4) << "concatenate";
+
+		//diagonalizing
+		for (int i = 0; i < m.rows(); i++)
+		{
+			for (int j = 0; j < m.cols(); j++)
+			{
+				if (j != i )
+				{
+					if(M(i,i) == 0)
+					{
+						PartialPivot<T>(M);
+					}
+
+					auto d = M(j,i) / M(i,i);
+					
+					M.row(j) -= M.row(i) * d;
+				}
+			}
+		}
+		FILE_LOG(Diagnositics::logDEBUG4) << "diagonalized";
+		//normalizing
+		for (int i = 0; i < N; i++)
+		{
+			auto d = M(i,i);
+			for (int j = 0; j < N * 2; j++)
+			{
+				M(i,j) = M(i,j) / d;
+			}
+		}
+		FILE_LOG(Diagnositics::logDEBUG4) << "normalized";
+		return M.rightCols(N);
+
+	}
 
 	template<typename T>
 	bool is_pos(Matrix<T, Dynamic, 1> V)
@@ -89,10 +188,6 @@ namespace Representation {
 
 		return false;
 	}
-
-	MatrixXi int_cast_Matrix(Matrix<rational<int>, Dynamic, Dynamic> X);
-
-	Matrix<rational<int>, Dynamic, Dynamic> Identity(int size);
 
 	template<typename T>
 	Matrix<T, Dynamic, Dynamic> ReflectionMatrix(Matrix<T, Dynamic, 1> V)
@@ -123,22 +218,21 @@ namespace Representation {
 		int n = M.rows(); // Size of NxN
 		T det = 0; //init det
 
-		Matrix<T, Dynamic, Dynamic> m;
+		
 
-		assert(n >= 1 && "An undefined matrix has been passed to RationalDeterminant.");
 		if (n == 1) det = M(0, 0);
 		else if (n == 2) det = M(1, 1) * M(0, 0) - M(1, 0)*M(0, 1);
 		else
 		{
 			det = 0;
-
-			#pragma omp parallel for
 			for (int j1 = 0; j1 < n; j1++)
 			{
+				Matrix<T, Dynamic, Dynamic> m;
 				m.resize(n - 1, n - 1);
 				for (int i = 1; i < n; i++)
 				{
 					int j2 = 0;
+					#pragma omp parallel for
 					for (int j = 0; j < n; j++)
 					{
 						if (j == j1) continue;
@@ -196,23 +290,28 @@ namespace Representation {
 		return m;
 	}
 
-	template<typename T>
-	Matrix<T, Dynamic, Dynamic> RationalInverse(Matrix<T, Dynamic, Dynamic> M)
-	{
-		FILE_LOG(Diagnositics::logDEBUG4)<< "RationalInverse with type " <<boost::typeindex::type_id<T>().pretty_name();
+	// template<typename T>
+	// Matrix<T, Dynamic, Dynamic> RationalInverse(Matrix<T, Dynamic, Dynamic> M)
+	// {
+	// 	FILE_LOG(Diagnositics::logDEBUG4)<< "RationalInverse with type " <<boost::typeindex::type_id<T>().pretty_name();
 
-		Matrix<T, Dynamic, Dynamic> co = CoFactor<T>(M);
-		T det = RationalDeterminant<T>(M);
-		return co.transpose() / det;
-	}
+	// 	Matrix<T, Dynamic, Dynamic> co = CoFactor<T>(M);
+	// 	T det = RationalDeterminant<T>(M);
+	// 	return co.transpose() / det;
+	// }
 
 	template<typename T>
 	Matrix<T, Dynamic, Dynamic> PseudoInverse(Matrix<T, Dynamic, Dynamic> M)
 	{
 		FILE_LOG(Diagnositics::logDEBUG4)<< "PseudoInverse with type " <<boost::typeindex::type_id<T>().pretty_name();
 
-		Eigen::Matrix<T, Dynamic, Dynamic> Sq_M = M*M.transpose();
-		return M.transpose()*(RationalInverse<T>(Sq_M));
+		if (M.cols() == M.rows())
+			return RationalInverse<T>(M);
+		else
+		{
+			Eigen::Matrix<T, Dynamic, Dynamic> Sq_M = M*M.transpose();
+			return M.transpose()*(RationalInverse<T>(Sq_M));
+		}		
 	}
 
 	template<typename T>
@@ -350,9 +449,19 @@ namespace Representation {
 	template<GroupType T>
 	inline std::vector<weight> LieBase<T>::weylOrbit(weight head)
 	{
-		FILE_LOG(Diagnositics::logDEBUG3) << "weylOrbit called";
+		FILE_LOG(Diagnositics::logDEBUG2) << "weylOrbit called";
+
+		int  N_simp = simple.size();
+		std::vector<MatrixXr> reflection_matrix_list;
+		reflection_matrix_list.resize(N_simp);
+
+		#pragma omp parallel for
+		for(int k = 0; k < N_simp; k++){
+			reflection_matrix_list[k] = ReflectionMatrix<rational<int>>(simple[k].ortho);
+		}
 
 		std::set<weight> master_list = { head };
+
 		auto begin = std::clock();
 		while (true)
 		{
@@ -363,7 +472,7 @@ namespace Representation {
 			for (auto i : master_list)
 			{				
 				//iterate through selected simple roots that stabilize the weight
-				for (auto j : simple)
+				for (auto j : reflection_matrix_list)
 				{
 					//check if weight has ortho already, if not give it one
 					if (i.ortho.size() == 0)
@@ -376,8 +485,8 @@ namespace Representation {
 					*/
 					weight reflected;
 
-					MatrixXr Reflector = ReflectionMatrix<rational<int>>(j.ortho);
-					reflected.ortho = Reflector * i.ortho;
+					
+					reflected.ortho = j * i.ortho;
 					reflected.omega = to_omega(reflected);
 
 					//Check to see if new reflected weight is unique
@@ -489,7 +598,7 @@ namespace Representation {
 		if (V.alpha.size() != 0)
 			return V.alpha;
 		else if (V.ortho.size() != 0)
-			return ((PseudoInverse<rational<int>>(Cartan)).transpose())*((PseudoInverse<rational<int>>(Omega).transpose())*V.ortho);
+			return ((PseudoInverse<rational<int>>(Cartan)).transpose())*(CoCartan.transpose()*V.ortho);
 		else
 			return (PseudoInverse<rational<int>>(Cartan)).transpose() * V.omega;
 	}
@@ -502,7 +611,7 @@ namespace Representation {
 		if (V.omega.size() != 0 )
 			return V.omega;
 		else if (V.ortho.size() != 0)
-			return (PseudoInverse<rational<int>>(Omega).transpose())*V.ortho;
+			return (CoCartan.transpose())*V.ortho;
 		else
 			return Cartan.transpose()*V.alpha;
 	}
@@ -906,7 +1015,7 @@ namespace Representation {
 	template<GroupType T>
 	inline void LieBase<T>::createMatrices()
 	{
-		FILE_LOG(Diagnositics::logDEBUG3) << "createMatrices called";
+		FILE_LOG(Diagnositics::logDEBUG2) << "createMatrices called";
 
 		Cartan.resize(Rank, Rank);
 		//Cartan Defined
@@ -917,6 +1026,7 @@ namespace Representation {
 				Cartan(i, j) = master_formula<rational<int>>(simple[j].ortho, simple[i].ortho);
 			}
 		}
+		FILE_LOG(Diagnositics::logDEBUG3) << "Cartan matrix generated";
 
 		CoCartan.resize(Rank, Rank);
 
@@ -924,8 +1034,10 @@ namespace Representation {
 		{
 			CoCartan.row(i) = 2 * simple[i].ortho / (simple[i].ortho.dot(simple[i].ortho));
 		}
+		FILE_LOG(Diagnositics::logDEBUG3) << "CoCartan matrix generated";
+		
 		Omega = (PseudoInverse<rational<int>>(CoCartan)).transpose();
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "Omega matrix generated";
 		//QuadraticForm Defined
 		QuadraticForm.resize(Rank, Rank);
 		MatrixXr temp;
@@ -936,12 +1048,13 @@ namespace Representation {
 		}
 
 		QuadraticForm = RationalInverse<rational<int>>(Cartan) * temp;
+		FILE_LOG(Diagnositics::logDEBUG3) << "Quadratic matrix generated";
 	}
 
 	template<>
 	inline void LieBase<GroupType::A>::createMatrices()
 	{
-		FILE_LOG(Diagnositics::logDEBUG3) << "createMatrices A called";
+		FILE_LOG(Diagnositics::logDEBUG2) << "createMatrices called";
 
 		Cartan.resize(Rank, Rank);
 		//Cartan Defined
@@ -952,6 +1065,7 @@ namespace Representation {
 				Cartan(i, j) = master_formula<rational<int>>(simple[j].ortho, simple[i].ortho);
 			}
 		}
+		FILE_LOG(Diagnositics::logDEBUG3) << "Cartan matrix generated";
 
 		CoCartan.resize(Rank, Rank + 1);
 
@@ -959,7 +1073,11 @@ namespace Representation {
 		{
 			CoCartan.row(i) = 2 * simple[i].ortho / (simple[i].ortho.dot(simple[i].ortho));
 		}
+		FILE_LOG(Diagnositics::logDEBUG3) << "CoCartan matrix generated";
+
 		Omega = (PseudoInverse<rational<int>>(CoCartan)).transpose();
+
+		FILE_LOG(Diagnositics::logDEBUG3) << "Omega matrix generated";
 
 		//QuadraticForm Defined
 		QuadraticForm.resize(Rank, Rank);
@@ -971,12 +1089,14 @@ namespace Representation {
 		}
 
 		QuadraticForm = RationalInverse<rational<int>>(Cartan) * temp;
+		FILE_LOG(Diagnositics::logDEBUG3) << "Quadratic matrix generated";
+
 	}
 
 	template<>
 	inline void LieBase<GroupType::G>::createMatrices()
 	{
-		FILE_LOG(Diagnositics::logDEBUG3) << "createMatrices G called";
+		FILE_LOG(Diagnositics::logDEBUG2) << "createMatrices G called";
 
 		Cartan.resize(Rank, Rank);
 		//Cartan Defined
@@ -987,15 +1107,17 @@ namespace Representation {
 				Cartan(i, j) = master_formula<rational<int>>(simple[j].ortho, simple[i].ortho);
 			}
 		}
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "Cartan matrix generated";
 		CoCartan.resize(Rank, Rank + 1);
 
 		for (size_t i = 0; i < Rank; i++)
 		{
 			CoCartan.row(i) = 2 * simple[i].ortho / (simple[i].ortho.dot(simple[i].ortho));
 		}
+		FILE_LOG(Diagnositics::logDEBUG3) << "CoCartan matrix generated";
+		
 		Omega = (PseudoInverse<rational<int>>(CoCartan)).transpose();
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "Omega matrix generated";
 		//QuadraticForm Defined
 		QuadraticForm.resize(Rank, Rank);
 		MatrixXr temp;
@@ -1006,12 +1128,13 @@ namespace Representation {
 		}
 
 		QuadraticForm = RationalInverse<rational<int>>(Cartan) * temp;
+		FILE_LOG(Diagnositics::logDEBUG3) << "Quadratic matrix generated";
 	}
 
 	template<>
 	inline void LieBase<GroupType::E>::createMatrices()
 	{
-		FILE_LOG(Diagnositics::logDEBUG3) << "createMatrices E called";
+		FILE_LOG(Diagnositics::logDEBUG2) << "createMatrices E called";
 
 		Cartan.resize(Rank, Rank);
 		//Cartan Defined
@@ -1022,7 +1145,7 @@ namespace Representation {
 				Cartan(i, j) = master_formula<rational<int>>(simple[j].ortho, simple[i].ortho);
 			}
 		}
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "Cartan matrix generated";
 
 		CoCartan.resize(Rank, 8);
 
@@ -1030,9 +1153,10 @@ namespace Representation {
 		{
 			CoCartan.row(i) = 2 * simple[i].ortho / (simple[i].ortho.dot(simple[i].ortho));
 		}
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "CoCartan matrix generated";
 		
 		Omega = (PseudoInverse<rational<int>>(CoCartan)).transpose();
+		FILE_LOG(Diagnositics::logDEBUG3) << "Omega matrix generated";
 
 		//QuadraticForm Defined
 		QuadraticForm.resize(Rank, Rank);
@@ -1044,12 +1168,13 @@ namespace Representation {
 		}
 
 		QuadraticForm = RationalInverse<rational<int>>(Cartan) * temp;
+		FILE_LOG(Diagnositics::logDEBUG3) << "Quadratic matrix generated";
 	}
 
 	template<GroupType T>
 	inline void LieBase<T>::createAllBases()
 	{
-		FILE_LOG(Diagnositics::logDEBUG3) << "createAllBases called";
+		FILE_LOG(Diagnositics::logDEBUG2) << "createAllBases called";
 
 		//create all bases for simple roots
 		for (size_t i = 0; i < simple.size(); i++)
@@ -1057,7 +1182,7 @@ namespace Representation {
 			simple[i].alpha = to_alpha(simple[i]);
 			simple[i].omega = to_omega(simple[i]);
 		}
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "simple bases generated";
 
 		//create all bases for positive roots
 		for (size_t i = 0; i < positiver.size(); i++)
@@ -1065,18 +1190,18 @@ namespace Representation {
 			positiver[i].alpha = to_alpha(positiver[i]);
 			positiver[i].omega = to_omega(positiver[i]);
 		}
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "positive root bases generated";
 		//Create rho, needed for dim and freudenthalRecursion
 		//init rho vector = (1,1,1...)
 		rho.resize(Rank);
 		for (size_t i = 0; i < Rank; i++)
 			rho(i) = rational<int>(1);
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "rho generated";
 	}
 	template<>
 	inline void LieBase<GroupType::G>::createAllBases()
 	{
-		FILE_LOG(Diagnositics::logDEBUG3) << "createAllBases called";
+		FILE_LOG(Diagnositics::logDEBUG2) << "createAllBases called";
 
 		//create all bases for simple roots
 		for (size_t i = 0; i < simple.size(); i++)
@@ -1084,7 +1209,7 @@ namespace Representation {
 			simple[i].alpha = to_alpha(simple[i]);
 			simple[i].omega = to_omega(simple[i]);
 		}
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "simple bases generated";
 		createExceptionalPositiveRoots();
 		//create all bases for positive roots
 		for (size_t i = 0; i < positiver.size(); i++)
@@ -1092,18 +1217,18 @@ namespace Representation {
 			positiver[i].alpha = to_alpha(positiver[i]);
 			positiver[i].ortho = to_ortho(positiver[i]);
 		}
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "positive root bases generated";
 		//Create rho, needed for dim and freudenthalRecursion
 		//init rho vector = (1,1,1...)
 		rho.resize(Rank);
 		for (size_t i = 0; i < Rank; i++)
 			rho(i) = rational<int>(1);
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "rho generated";
 	}
 	template<>
 	inline void LieBase<GroupType::F>::createAllBases()
 	{
-		FILE_LOG(Diagnositics::logDEBUG3) << "createAllBases called";
+		FILE_LOG(Diagnositics::logDEBUG2) << "createAllBases called";
 
 		//create all bases for simple roots
 		for (size_t i = 0; i < simple.size(); i++)
@@ -1111,7 +1236,7 @@ namespace Representation {
 			simple[i].alpha = to_alpha(simple[i]);
 			simple[i].omega = to_omega(simple[i]);
 		}
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "simple bases generated";
 		createExceptionalPositiveRoots();
 		//create all bases for positive roots
 		for (size_t i = 0; i < positiver.size(); i++)
@@ -1119,19 +1244,20 @@ namespace Representation {
 			positiver[i].alpha = to_alpha(positiver[i]);
 			positiver[i].ortho = to_ortho(positiver[i]);
 		}
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "positive root bases generated";
 		//Create rho, needed for dim and freudenthalRecursion
 		//init rho vector = (1,1,1...)
 		rho.resize(Rank);
 		for (size_t i = 0; i < Rank; i++)
 			rho(i) = rational<int>(1);
+		FILE_LOG(Diagnositics::logDEBUG3) << "rho generated";
 
 	}
 
 	template<>
 	inline void LieBase<GroupType::E>::createAllBases()
 	{
-		FILE_LOG(Diagnositics::logDEBUG3) << "createAllBases called";
+		FILE_LOG(Diagnositics::logDEBUG2) << "createAllBases called";
 
 		//create all bases for simple roots
 		for (size_t i = 0; i < simple.size(); i++)
@@ -1139,20 +1265,21 @@ namespace Representation {
 			simple[i].alpha = to_alpha(simple[i]);
 			simple[i].omega = to_omega(simple[i]);
 		}
-
-		createExceptionalPositiveRoots();
-		//create all bases for positive roots
-		for (size_t i = 0; i < positiver.size(); i++)
-		{
-			positiver[i].alpha = to_alpha(positiver[i]);
-			positiver[i].ortho = to_ortho(positiver[i]);
-		}
-
+		FILE_LOG(Diagnositics::logDEBUG3) << "simple bases generated";
+		// createExceptionalPositiveRoots();
+		// //create all bases for positive roots
+		// for (size_t i = 0; i < positiver.size(); i++)
+		// {
+		// 	positiver[i].alpha = to_alpha(positiver[i]);
+		// 	positiver[i].ortho = to_ortho(positiver[i]);
+		// }
+		// FILE_LOG(Diagnositics::logDEBUG3) << "positive root bases generated";
 		//Create rho, needed for dim and freudenthalRecursion
 		//init rho vector = (1,1,1...)
 		rho.resize(Rank);
 		for (size_t i = 0; i < Rank; i++)
 			rho(i) = rational<int>(1);
+		FILE_LOG(Diagnositics::logDEBUG3) << "rho generated";
 
 	}
 
@@ -1248,7 +1375,7 @@ namespace Representation {
 	template<GroupType T>
 	inline std::vector<std::pair<int, weight>> LieBase<T>::multiplicity(weight highest)
 	{
-		FILE_LOG(Diagnositics::logDEBUG3) << "multiplicity called";
+		FILE_LOG(Diagnositics::logDEBUG2) << "multiplicity called";
 
 		/*
 		* This is a helper function for the modified Freudenthal Recursion Formula
@@ -1317,7 +1444,7 @@ namespace Representation {
 	template<GroupType T>
 	inline std::vector<weight> LieBase<T>::weightTower()
 	{
-		FILE_LOG(Diagnositics::logDEBUG3) << "weightTower() called";
+		FILE_LOG(Diagnositics::logDEBUG2) << "weightTower() called";
 
 		std::vector<weight> final_result;
 
@@ -1370,7 +1497,7 @@ namespace Representation {
 	template<GroupType T>
 	inline std::vector<weight> LieBase<T>::weightTower(weight w)
 	{
-		FILE_LOG(Diagnositics::logDEBUG3) << "weightTower with weight called";
+		FILE_LOG(Diagnositics::logDEBUG2) << "weightTower with weight called";
 
 		//Given tower of weights for highest weight 'w'
 
@@ -1447,7 +1574,7 @@ namespace Representation {
 	template<GroupType T>
 	inline std::vector<weight> LieBase<T>::tensorProductDecomp(weight w1, weight w2)
 	{
-		FILE_LOG(Diagnositics::logDEBUG3) << "tensorProductDecomp called";
+		FILE_LOG(Diagnositics::logDEBUG2) << "tensorProductDecomp called";
 
 		//Algorithm based on Klimyk's formula
 
@@ -1621,7 +1748,7 @@ namespace Representation {
 	template<>
 	inline LieBase<GroupType::G>::LieBase(const size_t Rank)
 	{
-		FILE_LOG(Diagnositics::logDEBUG2) << "LieBase Constructor rank "<<Rank<<" called";
+		FILE_LOG(Diagnositics::logDEBUG) << "LieBase Constructor rank "<<Rank<<" called";
 		
 		if (Rank != 2)
 		{
@@ -1638,7 +1765,7 @@ namespace Representation {
 	template<>
 	inline LieBase<GroupType::F>::LieBase(const size_t Rank)
 	{
-		FILE_LOG(Diagnositics::logDEBUG2) << "LieBase Constructor rank "<<Rank<<" called";
+		FILE_LOG(Diagnositics::logDEBUG) << "LieBase Constructor rank "<<Rank<<" called";
 		
 		if (Rank != 4)
 		{
@@ -1655,7 +1782,7 @@ namespace Representation {
 	template<>
 	inline LieBase<GroupType::E>::LieBase(const size_t Rank)
 	{
-		FILE_LOG(Diagnositics::logDEBUG2) << "LieBase Constructor rank "<<Rank<<" called";
+		FILE_LOG(Diagnositics::logDEBUG) << "LieBase Constructor rank "<<Rank<<" called";
 		
 		if (Rank != 6 && Rank != 7 && Rank != 8)
 		{
@@ -1667,9 +1794,10 @@ namespace Representation {
 			this->Group = GroupType::E;
 			createOrtho();
 			createMatrices();
-			createAllBases();
+			//createAllBases();
 		}
 	}
 
-}
+} // namespace Representation
+
 #endif // !REPRESENTATION_LIEALGEBRA_H
